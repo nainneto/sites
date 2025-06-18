@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Performance com Ferramentas de IA (Avançado)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .kpi-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.1);
+        }
+        .main-card {
+             background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(17, 24, 39, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            width: 90%;
+            max-width: 700px;
+            transform: scale(0.95) translateY(10px);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1) translateY(0);
+        }
+        .gemini-button { display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 600; transition: background-color 0.2s; cursor: pointer; background-color: #4f46e5; color: white; border: none; }
+        .gemini-button:hover { background-color: #4338ca; }
+        .gemini-button .spinner { display: none; width: 1.25rem; height: 1.25rem; border: 3px solid transparent; border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; }
+        .gemini-button.loading .spinner { display: block; }
+        .gemini-button.loading .button-text { display: none; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 sm:p-6 lg:p-8">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Dashboard de Performance Detalhado</h1>
+            <p class="text-gray-500">Análise completa e plano de ação para sua conta Google Ads.</p>
+        </header>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="kpi-card flex items-center"><div class="p-3 bg-blue-100 text-blue-600 rounded-full mr-4"><i data-lucide="dollar-sign" class="w-6 h-6"></i></div><div><p class="text-sm text-gray-500">Custo Total</p><p class="text-2xl font-bold text-gray-800">R$ 200,33</p></div></div>
+            <div class="kpi-card flex items-center"><div class="p-3 bg-green-100 text-green-600 rounded-full mr-4"><i data-lucide="target" class="w-6 h-6"></i></div><div><p class="text-sm text-gray-500">Conversões</p><p class="text-2xl font-bold text-gray-800">2</p></div></div>
+            <div class="kpi-card flex items-center"><div class="p-3 bg-yellow-100 text-yellow-600 rounded-full mr-4"><i data-lucide="crosshair" class="w-6 h-6"></i></div><div><p class="text-sm text-gray-500">CPA Médio</p><p class="text-2xl font-bold text-gray-800">R$ 100,17</p></div></div>
+            <div class="kpi-card flex items-center"><div class="p-3 bg-purple-100 text-purple-600 rounded-full mr-4"><i data-lucide="mouse-pointer-click" class="w-6 h-6"></i></div><div><p class="text-sm text-gray-500">CTR Médio</p><p class="text-2xl font-bold text-gray-800">3,44%</p></div></div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Column -->
+            <div class="lg:col-span-2 space-y-8">
+                <div class="main-card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="layout-grid" class="w-5 h-5 mr-2 text-gray-600"></i>Análise Detalhada dos Grupos de Anúncios</h2>
+                    <div class="space-y-4">
+                        <div class="border-l-4 border-green-500 bg-green-50 p-4 rounded-r-lg"><h3 class="font-bold text-green-800">PERFORMANCE BOA: 01 - Segurança digital</h3><div class="flex justify-between items-center mt-2 text-sm"><div><p class="text-gray-600">Custo: <span class="font-semibold text-gray-800">R$ 120,44</span></p><p class="text-gray-600">Conversões: <span class="font-semibold text-gray-800">2</span></p></div><div class="text-right"><p class="text-gray-600">CPA</p><p class="font-bold text-lg text-green-700">R$ 60,22</p></div></div><p class="text-xs text-gray-600 mt-3"><b>Diagnóstico:</b> Este grupo concentra todo o resultado positivo da campanha, provando que há demanda qualificada para "segurança de dados". O CPA está em um nível promissor.</p></div>
+                        <div class="border-l-4 border-red-500 bg-red-50 p-4 rounded-r-lg"><h3 class="font-bold text-red-800">PROBLEMA CRÍTICO: 02 - Segurança Cibernética</h3><div class="flex justify-between items-center mt-2 text-sm"><div><p class="text-gray-600">Custo: <span class="font-semibold text-red-700">R$ 79,89</span></p><p class="text-gray-600">Conversões: <span class="font-semibold text-red-700">0</span></p></div><div class="text-right"><p class="text-gray-600">Desperdício</p><p class="font-bold text-lg text-red-700">Pausar Urgente!</p></div></div><p class="text-xs text-gray-600 mt-3"><b>Diagnóstico:</b> O gasto de quase R$80 sem nenhuma conversão indica uma falha grave. A palavra-chave "segurança cibernética" em correspondência ampla está atraindo um público que não busca comprar uma solução, mas sim pesquisar sobre o tema (o que é, salários, cursos).</p></div>
+                    </div>
+                </div>
+                
+                <!-- AI Tools Section -->
+                <div class="main-card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="brain-circuit" class="w-5 h-5 mr-2 text-indigo-600"></i>Ferramentas de IA Avançadas</h2>
+                    <p class="text-gray-600 text-sm mb-4">Potencialize suas campanhas. Utilize as ferramentas de IA para criar anúncios completos e descobrir novas palavras-chave de alta intenção.</p>
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <button onclick="openAdGeneratorModal()" class="flex-1 text-center bg-indigo-100 text-indigo-700 font-semibold p-4 rounded-lg hover:bg-indigo-200 transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="sparkles" class="w-5 h-5"></i>
+                            Gerador de Anúncios Completo
+                        </button>
+                        <button onclick="openKeywordGeneratorModal()" class="flex-1 text-center bg-blue-100 text-blue-700 font-semibold p-4 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center gap-2">
+                             <i data-lucide="key-round" class="w-5 h-5"></i>
+                            Gerador de Palavras-chave
+                        </button>
+                    </div>
+                </div>
+
+                <div class="main-card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="archive" class="w-5 h-5 mr-2 text-gray-600"></i>Análise Detalhada de Palavras-chave</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="p-4 rounded-lg bg-gray-50 border border-green-200"><div class="flex items-center mb-2"><i data-lucide="award" class="w-6 h-6 text-green-500 mr-2"></i><h4 class="font-bold text-gray-800">Palavra-chave de Sucesso</h4></div><p class="font-semibold text-gray-800 text-lg">segurança de dados</p><p class="text-xs text-gray-500 mt-1">(Correspondência Ampla)</p><p class="mt-2 text-sm text-green-700"><b>Resultado:</b> Gerou 100% das conversões com um CPA de apenas R$ 40,68.</p><p class="text-xs text-gray-600 mt-2"><b>Oportunidade:</b> O termo é validado. O próximo passo é refinar a correspondência para ter mais controle e qualificar ainda mais o tráfego, evitando buscas genéricas.</p></div>
+                        <div class="p-4 rounded-lg bg-gray-50 border border-red-200"><div class="flex items-center mb-2"><i data-lucide="alert-octagon" class="w-6 h-6 text-red-500 mr-2"></i><h4 class="font-bold text-gray-800">Principal Desperdício</h4></div><p class="font-semibold text-gray-800 text-lg">segurança cibernética</p><p class="text-xs text-gray-500 mt-1">(Correspondência Ampla)</p><p class="mt-2 text-sm text-red-700"><b>Resultado:</b> Gastou R$ 79,89 (40% do total) e não gerou NENHUMA conversão.</p><p class="text-xs text-gray-600 mt-2"><b>Causa:</b> A correspondência ampla para um termo genérico atrai cliques de curiosos e estudantes, não de potenciais clientes. A ação imediata é pausar esta palavra-chave.</p></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="lg:col-span-1 space-y-8">
+                <div class="main-card bg-gray-800 text-white">
+                     <h2 class="text-xl font-bold text-white mb-4 flex items-center"><i data-lucide="list-checks" class="w-5 h-5 mr-2 text-blue-300"></i>Plano de Ação Priorizado</h2>
+                    <ul class="space-y-4">
+                        <li class="flex"><i data-lucide="siren" class="w-10 h-10 mr-4 text-red-400 flex-shrink-0"></i><div><h3 class="font-semibold text-red-400">1. Ações Imediatas (URGENTE)</h3><p class="text-sm text-gray-300">Pausar grupo e palavra-chave `segurança cibernética`. Criar lista de negativas com os termos identificados.</p></div></li>
+                        <li class="flex"><i data-lucide="sliders-horizontal" class="w-10 h-10 mr-4 text-yellow-400 flex-shrink-0"></i><div><h3 class="font-semibold text-yellow-400">2. Otimização Estratégica</h3><p class="text-sm text-gray-300">Mudar a correspondência de `segurança de dados` para Frase/Exata. Alterar lance para "Maximizar Conversões".</p></div></li>
+                        <li class="flex"><i data-lucide="rocket" class="w-10 h-10 mr-4 text-green-400 flex-shrink-0"></i><div><h3 class="font-semibold text-green-400">3. Crescimento Futuro</h3><p class="text-sm text-gray-300">Criar novos grupos de anúncios específicos e monitorar termos de pesquisa semanalmente.</p></div></li>
+                    </ul>
+                </div>
+                <div class="main-card">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center"><i data-lucide="ban" class="w-5 h-5 mr-2 text-red-600"></i>Termos para Negativar (Urgente)</h2>
+                    <p class="text-sm text-gray-600 mb-3">Estes termos consumiram orçamento e não são de potenciais clientes. Adicione-os à sua lista de palavras-chave negativas.</p>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded-full">salario</span>
+                        <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded-full">o que e</span>
+                        <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded-full">curso</span>
+                        <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded-full">vaga</span>
+                        <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded-full">gratuito</span>
+                        <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded-full">download</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Gerador de Anúncios Completo -->
+    <div id="adGeneratorModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><i data-lucide="sparkles" class="text-indigo-500"></i>Gerador de Anúncios Completo</h2>
+                <button onclick="closeAdGeneratorModal()"><i data-lucide="x" class="w-6 h-6 text-gray-500 hover:text-gray-800"></i></button>
+            </div>
+            <div id="adSuggestionContent" class="mb-6 max-h-[60vh] overflow-y-auto pr-2">
+                <p class="text-center text-gray-500">Clique em "Gerar" para criar uma lista robusta de títulos, descrições e sitelinks com foco na transformação do cliente.</p>
+            </div>
+            <div class="text-center mt-8 border-t pt-6">
+                <button id="geminiAdGenerateBtn" class="gemini-button">
+                    <span class="button-text">Gerar Anúncios</span>
+                    <div class="spinner"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Gerador de Palavras-chave -->
+    <div id="keywordGeneratorModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2"><i data-lucide="key-round" class="text-blue-500"></i>Gerador de Palavras-chave</h2>
+                <button onclick="closeKeywordGeneratorModal()"><i data-lucide="x" class="w-6 h-6 text-gray-500 hover:text-gray-800"></i></button>
+            </div>
+            <div id="keywordGenResult" class="mb-6 max-h-[60vh] overflow-y-auto pr-2">
+                <p class="text-center text-gray-500">Clique em "Gerar" para descobrir novos grupos de palavras-chave com alta intenção de compra.</p>
+            </div>
+            <div class="text-center mt-8 border-t pt-6">
+                <button id="generateKeywordsButton" class="gemini-button">
+                    <span class="button-text">Gerar Palavras-chave</span>
+                    <div class="spinner"></div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        lucide.createIcons();
+
+        // --- Variáveis e Constantes ---
+        const apiKey = ""; // Deixe em branco
+        const apiUrlText = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+        // --- Elementos do DOM ---
+        const adGeneratorModal = document.getElementById('adGeneratorModal');
+        const keywordGeneratorModal = document.getElementById('keywordGeneratorModal');
+        const adSuggestionContent = document.getElementById('adSuggestionContent');
+        const keywordGenResult = document.getElementById('keywordGenResult');
+        const geminiAdGenerateBtn = document.getElementById('geminiAdGenerateBtn');
+        const generateKeywordsButton = document.getElementById('generateKeywordsButton');
+
+        // --- Funções dos Modais ---
+        function openAdGeneratorModal() { adGeneratorModal.classList.add('active'); }
+        function closeAdGeneratorModal() { adGeneratorModal.classList.remove('active'); }
+        function openKeywordGeneratorModal() { keywordGeneratorModal.classList.add('active'); }
+        function closeKeywordGeneratorModal() { keywordGeneratorModal.classList.remove('active'); }
+
+        // --- Lógica da API Gemini ---
+        async function generateAdSuggestions() {
+            const button = geminiAdGenerateBtn;
+            button.classList.add('loading');
+            adSuggestionContent.innerHTML = '<p class="text-center text-gray-500">A IA está criando seus anúncios... um momento.</p>';
+            const prompt = `
+                Você é um copywriter sênior especialista em marketing B2B para empresas de tecnologia. Sua tarefa é criar os componentes para um Anúncio Responsivo de Pesquisa do Google Ads com foco em alta performance.
+
+                **Produto:** Soluções de Cibersegurança da empresa NGSX.
+                **Público-alvo:** Gerentes de TI, CTOs, e CEOs de médias e grandes empresas preocupados com a segurança de dados e continuidade do negócio.
+                **Foco da Mensagem:** A transformação e o resultado final para o cliente (paz de espírito, continuidade do negócio, proteção contra perdas financeiras), e não apenas as características técnicas do produto. Humanize a comunicação, evitando jargões excessivamente técnicos e linguagem robótica.
+
+                **Sua tarefa é gerar:**
+                1.  **15 Títulos (máximo 30 caracteres cada):** Crie uma variedade de títulos, incluindo perguntas, chamadas para ação, e benefícios diretos.
+                2.  **4 Descrições (máximo 90 caracteres cada):** Elabore descrições que contem uma pequena história, quebrem objeções e reforcem a transformação.
+                3.  **4 Ideias de Sitelinks (Título do Sitelink com 25 caracteres e 2 linhas de descrição com 35 caracteres cada):** Pense em páginas importantes do site que complementam a oferta principal.
+
+                **Palavra-chave principal para inspiração:** "segurança de dados"
+            `;
+             const schema = {
+                type: "OBJECT",
+                properties: {
+                    titles: {
+                        type: "ARRAY",
+                        items: { type: "STRING" }
+                    },
+                    descriptions: {
+                        type: "ARRAY",
+                        items: { type: "STRING" }
+                    },
+                    sitelinks: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                title: { type: "STRING" },
+                                line1: { type: "STRING" },
+                                line2: { type: "STRING" }
+                            },
+                             required: ["title", "line1", "line2"]
+                        }
+                    }
+                },
+                required: ["titles", "descriptions", "sitelinks"]
+            };
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json", responseSchema: schema }
+            };
+
+            try {
+                const response = await fetch(apiUrlText, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const result = await response.json();
+                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+                     const adData = JSON.parse(result.candidates[0].content.parts[0].text);
+                    renderAdSuggestions(adData);
+                } else { throw new Error("Resposta da API inválida."); }
+            } catch (error) {
+                console.error("Erro ao gerar sugestões de anúncios:", error);
+                adSuggestionContent.innerHTML = '<p class="text-red-500">Ocorreu um erro ao contatar a IA. Tente novamente mais tarde.</p>';
+            } finally {
+                button.classList.remove('loading');
+            }
+        }
+        geminiAdGenerateBtn.addEventListener('click', generateAdSuggestions);
+        
+        function renderAdSuggestions(data) {
+            let html = '<div class="space-y-6">';
+
+            // Render Titles
+            html += '<div><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><i data-lucide="text-quote" class="w-5 h-5 text-indigo-500"></i>Títulos Sugeridos</h4><div class="flex flex-wrap gap-2">';
+            data.titles.forEach(title => {
+                html += `<span class="bg-indigo-50 text-indigo-800 text-sm font-medium px-3 py-1 rounded-full">${title}</span>`;
+            });
+            html += '</div></div>';
+
+            // Render Descriptions
+            html += '<div><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><i data-lucide="file-text" class="w-5 h-5 text-indigo-500"></i>Descrições Persuasivas</h4><div class="space-y-3">';
+            data.descriptions.forEach(desc => {
+                html += `<p class="bg-gray-100 p-3 rounded-md text-gray-700 text-sm">${desc}</p>`;
+            });
+            html += '</div></div>';
+
+            // Render Sitelinks
+            html += '<div><h4 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><i data-lucide="link" class="w-5 h-5 text-indigo-500"></i>Ideias de Sitelinks</h4><div class="grid grid-cols-1 sm:grid-cols-2 gap-4">';
+            data.sitelinks.forEach(sitelink => {
+                html += `<div class="border border-gray-200 p-3 rounded-lg"><p class="font-semibold text-blue-600">${sitelink.title}</p><p class="text-xs text-gray-600">${sitelink.line1}</p><p class="text-xs text-gray-600">${sitelink.line2}</p></div>`;
+            });
+            html += '</div></div>';
+
+            html += '</div>';
+            adSuggestionContent.innerHTML = html;
+            lucide.createIcons();
+        }
+
+
+        async function generateKeywords() {
+            const button = generateKeywordsButton;
+            button.classList.add('loading');
+            keywordGenResult.innerHTML = '<p class="text-center text-gray-500">A IA está pesquisando novas palavras-chave...</p>';
+            
+            const prompt = `
+                Você é um especialista em Google Ads com foco em pesquisa de palavras-chave para o setor de tecnologia B2B.
+
+                **Contexto:** Estou gerenciando uma campanha para a empresa NGSX, que vende soluções de cibersegurança para outras empresas. A palavra-chave de maior sucesso até agora é 'segurança de dados'. Os termos de pesquisa que mais gastaram dinheiro sem converter foram relacionados a buscas por salários, cursos e definições genéricas (ex: 'o que é segurança cibernética', 'salário segurança cibernética').
+
+                **Sua Tarefa:** Com base no contexto, gere uma lista de novas sugestões de palavras-chave para expandir a campanha de forma segura e qualificada.
+
+                **Instruções:**
+                1.  Foque em termos com alta intenção comercial.
+                2.  Evite termos genéricos que levem a pesquisas acadêmicas ou de carreira.
+                3.  Agrupe as palavras-chave sugeridas por temas semânticos relevantes.
+
+                **Exemplos de termos de pesquisa que podem ser usados como inspiração (mas não se limite a eles):** 'proteção de rede empresarial', 'segurança de rede corporativa', 'proteção contra acessos não autorizados', 'implementação de firewalls corporativos'.
+            `;
+            const schema = {
+                type: "ARRAY",
+                items: {
+                    type: "OBJECT",
+                    properties: {
+                        theme: { type: "STRING" },
+                        keywords: {
+                            type: "ARRAY",
+                            items: { type: "STRING" }
+                        },
+                        justification: { type: "STRING" }
+                    },
+                    required: ["theme", "keywords", "justification"]
+                }
+            };
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: "application/json", responseSchema: schema }
+            };
+            try {
+                const response = await fetch(apiUrlText, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const result = await response.json();
+                if (result.candidates && result.candidates[0].content && result.candidates[0].content.parts[0]) {
+                    const keywordData = JSON.parse(result.candidates[0].content.parts[0].text);
+                    renderKeywordSuggestions(keywordData);
+                } else { throw new Error("Resposta da API inválida."); }
+            } catch (error) {
+                console.error("Erro ao gerar palavras-chave:", error);
+                keywordGenResult.innerHTML = '<p class="text-red-500">Ocorreu um erro ao contatar a IA. Tente novamente.</p>';
+            } finally {
+                button.classList.remove('loading');
+            }
+        }
+        generateKeywordsButton.addEventListener('click', generateKeywords);
+
+        function renderKeywordSuggestions(data) {
+            let html = '';
+            data.forEach(group => {
+                html += `
+                    <div class="mb-4 p-4 border rounded-lg bg-gray-50">
+                        <h4 class="font-bold text-gray-800">${group.theme}</h4>
+                        <p class="text-xs text-gray-500 italic mb-2">IA: "${group.justification}"</p>
+                        <ul class="list-disc list-inside text-sm text-gray-700">
+                `;
+                group.keywords.forEach(kw => {
+                    html += `<li>${kw}</li>`;
+                });
+                html += `</ul></div>`;
+            });
+            keywordGenResult.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
