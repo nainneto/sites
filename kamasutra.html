@@ -1,1185 +1,1212 @@
-import React, { useState, useRef } from 'react';
-
-// Componente da Roleta da Intimidade (Jogo Original)
-const WheelGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
-    // Estado para armazenar o desafio atual (Verdade ou Desafio)
-    const [currentChallenge, setCurrentChallenge] = useState(null);
-    // Estado para as categorias da roleta
-    const [categories] = useState([
-        { name: 'Toque Sensual', description: 'Foco em carícias e sensações.' },
-        { name: 'Conexão Profunda', description: 'Perguntas e ações que aumentam a intimidade.' },
-        { name: 'Ação Ousada', description: 'Desafios mais quentes e experimentais.' },
-        { name: 'Fantasias Reveladas', description: 'Compartilhando desejos e sonhos.' },
-        { name: 'Surpresa', description: 'Um desafio aleatório para apimentar.' },
-    ]);
-    // Estado para a categoria escolhida da roleta
-    const [chosenCategory, setChosenCategory] = useState(null);
-    // Estado para controlar a animação da roleta
-    const [spinning, setSpinning] = useState(false);
-    const [rotation, setRotation] = useState(0);
-    // Ref para o elemento da roleta
-    const wheelRef = useRef(null);
-    // Estado para o texto gerado pelo LLM
-    const [llmGeneratedText, setLlmGeneratedText] = useState('');
-    // Estado para o loading do LLM
-    const [llmLoading, setLlmLoading] = useState(false);
-
-
-    // Dados para verdades e desafios, categorizados
-    const challenges = {
-        'Toque Sensual': {
-            truths: [
-                "Qual a parte do meu corpo que você mais gosta de tocar e por quê?",
-                "Descreva o toque mais sensual que você já experimentou comigo.",
-                "Qual tipo de beijo você mais gosta de dar e receber?",
-                `${player1Name} ou ${player2Name} precisa te dar uma massagem nos pés por 2 minutos. Onde mais?`,
-                "Qual sensação física te excita mais?",
-            ],
-            dares: [
-                "Vende os olhos do seu parceiro(a) e explore o rosto dele(a) apenas com as pontas dos dedos.",
-                "Dê uma massagem sensual nas costas do seu parceiro(a) por 3 minutos.",
-                "Beije seu parceiro(a) do pescoço até a coxa, lentamente.",
-                "Use um cubo de gelo para tocar suavemente uma parte do corpo do seu parceiro(a).",
-                "Com as mãos, explore cada centímetro da coxa interna do seu parceiro(a), por fora da roupa.",
-            ]
-        },
-        'Conexão Profunda': {
-            truths: [
-                "Quando você se sentiu mais conectado(a) comigo sexualmente?",
-                "O que você mais admira em mim em relação à nossa intimidade?",
-                "Qual é a sua memória sexual mais querida comigo?",
-                "O que te faz sentir mais desejado(a) por mim?",
-                "Qual a coisa mais romântica que podemos fazer um pelo outro hoje?",
-            ],
-            dares: [
-                "Sussurre três coisas que você ama no corpo do seu parceiro(a).",
-                "Olhe profundamente nos olhos do seu parceiro(a) por um minuto sem falar, apenas sentindo a conexão.",
-                "Escreva uma pequena 'carta de amor' erótica para o seu parceiro(a), descrevendo algo que você deseja.",
-                "Compartilhe uma fantasia que você gostaria de explorar, mesmo que seja apenas verbalmente.",
-                "Cante uma canção romântica ou sensual para seu parceiro(a).",
-            ]
-        },
-        'Ação Ousada': {
-            truths: [
-                "Qual é a posição sexual que você mais gostaria de experimentar e por quê?",
-                "Qual foi a coisa mais 'louca' que você já pensou em fazer comigo?",
-                "Existe algum fetiche ou tabu que você tem curiosidade de explorar?",
-                "Qual é o seu limite quando se trata de experimentar coisas novas?",
-                "Qual o lugar mais inusitado que você gostaria de fazer amor?",
-            ],
-            dares: [
-                "Escolha um local 'arrisolado' na casa e dê um beijo de tirar o fôlego no seu parceiro(a).",
-                "Faça um strip-tease lento e sensual para o seu parceiro(a).",
-                "Amarre suavemente as mãos do seu parceiro(a) (com um lenço, por exemplo) e o beije em três lugares diferentes.",
-                "Por um minuto, seu parceiro(a) decide como te tocar, e você não pode usar as mãos.",
-                "Use os olhos vendados e deixe o parceiro(a) te guiar para um local para uma surpresa.",
-            ]
-        },
-        'Fantasias Reveladas': {
-            truths: [
-                "Qual é a sua fantasia mais secreta que você nunca me contou?",
-                "Existe alguma fantasia que você acha que eu tenho e que gostaria de ajudar a realizar?",
-                "Descreva a cena de uma fantasia que você tem comigo em detalhes.",
-                "Qual tipo de cenário ou papel você gostaria de experimentar em uma fantasia?",
-                "Se você pudesse realizar uma fantasia minha, qual seria?",
-            ],
-            dares: [
-                "Atuem uma pequena cena de uma fantasia que um de vocês tem.",
-                "Crie uma 'história erótica' de 2 minutos sobre uma fantasia sua, usando seu parceiro(a) como personagem principal.",
-                "Comece a descrever uma fantasia e peça ao seu parceiro(a) para completá-la.",
-                "Escolha uma música que te inspire uma fantasia e dance para seu parceiro(a).",
-                "Troquem de papéis por 5 minutos, onde um imita a fantasia do outro.",
-            ]
-        },
-        'Surpresa': { // This category will now be LLM-powered
-            truths: [], // These will be generated by LLM
-            dares: [], // These will be generated by LLM
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma de Jogos de Intimidade para Casais</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React, ReactDOM, and Babel CDNs -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Define a fonte Inter como padrão para todo o corpo */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            overflow-x: hidden; /* Evita rolagem horizontal */
         }
-    };
-
-    // Função para gerar um desafio com o LLM (Gemini)
-    const generateLlmChallenge = async () => {
-        setLlmLoading(true);
-        setLlmGeneratedText('');
-        try {
-            const prompt = `Gere um desafio sensual aleatório (verdade ou desafio) para um casal que quer experimentar coisas novas. Inclua os nomes dos jogadores, se possível. Por exemplo: 'Verdade: Qual a sua fantasia mais secreta? Desafio: Beije o seu parceiro(a) no local mais inesperado da casa.' Gere apenas a verdade ou o desafio, sem introduções. Os jogadores são ${player1Name} e ${player2Name}.`;
-            let chatHistory = [];
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-            const payload = { contents: chatHistory };
-            const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-
-            if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                // Determine if it's a Truth or Dare based on the generated text
-                const type = text.toLowerCase().includes('verdade:') ? 'Verdade' : 'Desafio';
-                setCurrentChallenge({ type: type, text: text });
-                setLlmGeneratedText(text);
-            } else {
-                console.error("Erro ao gerar desafio com LLM: Estrutura de resposta inesperada.", result);
-                setCurrentChallenge({ type: 'Erro', text: 'Não foi possível gerar um desafio agora. Tente novamente!' });
-            }
-        } catch (error) {
-            console.error("Erro na chamada do Gemini API:", error);
-            setCurrentChallenge({ type: 'Erro', text: 'Falha na conexão. Tente novamente!' });
-        } finally {
-            setLlmLoading(false);
+        /* Estilos adicionais para centralizar e garantir altura total */
+        #root {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
         }
-    };
+        /* Estilos para os segmentos da roleta (cores dinâmicas são geridas via JS) */
+    </style>
+</head>
+<body>
+    <div id="root" class="w-full"></div>
+
+    <script type="text/babel">
+        // Componente da Roleta da Intimidade (Jogo Original)
+        const WheelGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
+            // Estado para armazenar o desafio atual (Verdade ou Desafio)
+            const [currentChallenge, setCurrentChallenge] = React.useState(null);
+            // Estado para as categorias da roleta
+            const [categories] = React.useState([
+                { name: 'Toque Sensual', description: 'Foco em carícias e sensações.' },
+                { name: 'Conexão Profunda', description: 'Perguntas e ações que aumentam a intimidade.' },
+                { name: 'Ação Ousada', description: 'Desafios mais quentes e experimentais.' },
+                { name: 'Fantasias Reveladas', description: 'Compartilhando desejos e sonhos.' },
+                { name: 'Surpresa', description: 'Um desafio aleatório para apimentar.' },
+            ]);
+            // Estado para a categoria escolhida da roleta
+            const [chosenCategory, setChosenCategory] = React.useState(null);
+            // Estado para controlar a animação da roleta
+            const [spinning, setSpinning] = React.useState(false);
+            const [rotation, setRotation] = React.useState(0);
+            // Ref para o elemento da roleta
+            const wheelRef = React.useRef(null);
+            // Estado para o texto gerado pelo LLM
+            const [llmGeneratedText, setLlmGeneratedText] = React.useState('');
+            // Estado para o loading do LLM
+            const [llmLoading, setLlmLoading] = React.useState(false);
 
 
-    // Função para girar a roleta
-    const spinWheel = () => {
-        if (spinning) return;
-
-        setSpinning(true);
-        const newRotation = rotation + 360 * 5 + Math.floor(Math.random() * 360);
-        setRotation(newRotation);
-
-        setTimeout(() => {
-            const numCategories = categories.length;
-            const segmentAngle = 360 / numCategories;
-            const finalAngle = newRotation % 360;
-            const chosenIndex = Math.floor(finalAngle / segmentAngle);
-            const selectedCategory = categories[numCategories - 1 - chosenIndex];
-            setChosenCategory(selectedCategory);
-
-            setTimeout(() => {
-                if (selectedCategory.name === 'Surpresa') {
-                    generateLlmChallenge(); // Call LLM for 'Surpresa'
-                } else {
-                    const type = Math.random() < 0.5 ? 'truths' : 'dares';
-                    const categoryChallenges = challenges[selectedCategory.name][type];
-                    const randomChallenge = categoryChallenges[Math.floor(Math.random() * categoryChallenges.length)];
-                    setCurrentChallenge({ type: type === 'truths' ? 'Verdade' : 'Desafio', text: randomChallenge });
+            // Dados para verdades e desafios, categorizados
+            const challenges = {
+                'Toque Sensual': {
+                    truths: [
+                        "Qual a parte do meu corpo que você mais gosta de tocar e por quê?",
+                        "Descreva o toque mais sensual que você já experimentou comigo.",
+                        "Qual tipo de beijo você mais gosta de dar e receber?",
+                        `${player1Name} ou ${player2Name} precisa te dar uma massagem nos pés por 2 minutos. Onde mais?`,
+                        "Qual sensação física te excita mais?",
+                    ],
+                    dares: [
+                        "Vende os olhos do seu parceiro(a) e explore o rosto dele(a) apenas com as pontas dos dedos.",
+                        "Dê uma massagem sensual nas costas do seu parceiro(a) por 3 minutos.",
+                        "Beije seu parceiro(a) do pescoço até a coxa, lentamente.",
+                        "Use um cubo de gelo para tocar suavemente uma parte do corpo do seu parceiro(a).",
+                        "Com as mãos, explore cada centímetro da coxa interna do seu parceiro(a), por fora da roupa.",
+                    ]
+                },
+                'Conexão Profunda': {
+                    truths: [
+                        "Quando você se sentiu mais conectado(a) comigo sexualmente?",
+                        "O que você mais admira em mim em relação à nossa intimidade?",
+                        "Qual é a sua memória sexual mais querida comigo?",
+                        "O que te faz sentir mais desejado(a) por mim?",
+                        "Qual a coisa mais romântica que podemos fazer um pelo outro hoje?",
+                    ],
+                    dares: [
+                        "Sussurre três coisas que você ama no corpo do seu parceiro(a).",
+                        "Olhe profundamente nos olhos do seu parceiro(a) por um minuto sem falar, apenas sentindo a conexão.",
+                        "Escreva uma pequena 'carta de amor' erótica para o seu parceiro(a), descrevendo algo que você deseja.",
+                        "Compartilhe uma fantasia que você gostaria de explorar, mesmo que seja apenas verbalmente.",
+                        "Cante uma canção romântica ou sensual para seu parceiro(a).",
+                    ]
+                },
+                'Ação Ousada': {
+                    truths: [
+                        "Qual é a posição sexual que você mais gostaria de experimentar e por quê?",
+                        "Qual foi a coisa mais 'louca' que você já pensou em fazer comigo?",
+                        "Existe algum fetiche ou tabu que você tem curiosidade de explorar?",
+                        "Qual é o seu limite quando se trata de experimentar coisas novas?",
+                        "Qual o lugar mais inusitado que você gostaria de fazer amor?",
+                    ],
+                    dares: [
+                        "Escolha um local 'arrisolado' na casa e dê um beijo de tirar o fôlego no seu parceiro(a).",
+                        "Faça um strip-tease lento e sensual para o seu parceiro(a).",
+                        "Amarre suavemente as mãos do seu parceiro(a) (com um lenço, por exemplo) e o beije em três lugares diferentes.",
+                        "Por um minuto, seu parceiro(a) decide como te tocar, e você não pode usar as mãos.",
+                        "Use os olhos vendados e deixe o parceiro(a) te guiar para um local para uma surpresa.",
+                    ]
+                },
+                'Fantasias Reveladas': {
+                    truths: [
+                        "Qual é a sua fantasia mais secreta que você nunca me contou?",
+                        "Existe alguma fantasia que você acha que eu tenho e que gostaria de ajudar a realizar?",
+                        "Descreva a cena de uma fantasia que você tem comigo em detalhes.",
+                        "Qual tipo de cenário ou papel você gostaria de experimentar em uma fantasia?",
+                        "Se você pudesse realizar uma fantasia minha, qual seria?",
+                    ],
+                    dares: [
+                        "Atuem uma pequena cena de uma fantasia que um de vocês tem.",
+                        "Crie uma 'história erótica' de 2 minutos sobre uma fantasia sua, usando seu parceiro(a) como personagem principal.",
+                        "Comece a descrever uma fantasia e peça ao seu parceiro(a) para completá-la.",
+                        "Escolha uma música que te inspire uma fantasia e dance para seu parceiro(a).",
+                        "Troquem de papéis por 5 minutos, onde um imita a fantasia do outro.",
+                    ]
+                },
+                'Surpresa': { // This category will now be LLM-powered
+                    truths: [], // These will be generated by LLM
+                    dares: [], // These will be generated by LLM
                 }
-                setSpinning(false);
-            }, 1000);
-        }, 5000);
-    };
+            };
 
-    const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
-    const segmentCount = categories.length;
-    const segmentDegrees = 360 / segmentCount;
+            // Função para gerar um desafio com o LLM (Gemini)
+            const generateLlmChallenge = async () => {
+                setLlmLoading(true);
+                setLlmGeneratedText('');
+                try {
+                    const prompt = `Gere um desafio sensual aleatório (verdade ou desafio) para um casal que quer experimentar coisas novas. Inclua os nomes dos jogadores, se possível. Por exemplo: 'Verdade: Qual a sua fantasia mais secreta? Desafio: Beije o seu parceiro(a) no local mais inesperado da casa.' Gere apenas a verdade ou o desafio, sem introduções. Os jogadores são ${player1Name} e ${player2Name}.`;
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-    return (
-        <div className="flex flex-col items-center justify-between h-full p-4 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
-                Vez de: <span className="text-rose-300">{currentPlayerName}</span>
-            </h2>
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
 
-            <div className="relative w-72 h-72 lg:w-96 lg:h-96 bg-white bg-opacity-10 rounded-full flex items-center justify-center shadow-2xl mb-8">
-                {/* Roleta */}
-                <div
-                    ref={wheelRef}
-                    className="absolute w-full h-full rounded-full transition-transform duration-[4s] ease-out"
-                    style={{ transform: `rotate(${rotation}deg)` }}
-                >
-                    {categories.map((category, index) => (
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        // Determine if it's a Truth or Dare based on the generated text
+                        const type = text.toLowerCase().includes('verdade:') ? 'Verdade' : 'Desafio';
+                        setCurrentChallenge({ type: type, text: text });
+                        setLlmGeneratedText(text);
+                    } else {
+                        console.error("Erro ao gerar desafio com LLM: Estrutura de resposta inesperada.", result);
+                        setCurrentChallenge({ type: 'Erro', text: 'Não foi possível gerar um desafio agora. Tente novamente!' });
+                    }
+                } catch (error) {
+                    console.error("Erro na chamada do Gemini API:", error);
+                    setCurrentChallenge({ type: 'Erro', text: 'Falha na conexão. Tente novamente!' });
+                } finally {
+                    setLlmLoading(false);
+                }
+            };
+
+
+            // Função para girar a roleta
+            const spinWheel = () => {
+                if (spinning) return;
+
+                setSpinning(true);
+                const newRotation = rotation + 360 * 5 + Math.floor(Math.random() * 360);
+                setRotation(newRotation);
+
+                setTimeout(() => {
+                    const numCategories = categories.length;
+                    const segmentAngle = 360 / numCategories;
+                    const finalAngle = newRotation % 360;
+                    const chosenIndex = Math.floor(finalAngle / segmentAngle);
+                    const selectedCategory = categories[numCategories - 1 - chosenIndex];
+                    setChosenCategory(selectedCategory);
+
+                    setTimeout(() => {
+                        if (selectedCategory.name === 'Surpresa') {
+                            generateLlmChallenge(); // Call LLM for 'Surpresa'
+                        } else {
+                            const type = Math.random() < 0.5 ? 'truths' : 'dares';
+                            const categoryChallenges = challenges[selectedCategory.name][type];
+                            const randomChallenge = categoryChallenges[Math.floor(Math.random() * categoryChallenges.length)];
+                            setCurrentChallenge({ type: type === 'truths' ? 'Verdade' : 'Desafio', text: randomChallenge });
+                        }
+                        setSpinning(false);
+                    }, 1000);
+                }, 5000);
+            };
+
+            const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
+            const segmentCount = categories.length;
+            const segmentDegrees = 360 / segmentCount;
+
+            return (
+                <div className="flex flex-col items-center justify-between h-full p-4 text-center">
+                    <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
+                        Vez de: <span className="text-rose-300">{currentPlayerName}</span>
+                    </h2>
+
+                    <div className="relative w-72 h-72 lg:w-96 lg:h-96 bg-white bg-opacity-10 rounded-full flex items-center justify-center shadow-2xl mb-8">
+                        {/* Roleta */}
                         <div
-                            key={category.name}
-                            className="absolute origin-bottom-center inset-0"
-                            style={{
-                                transform: `rotate(${index * segmentDegrees}deg)`,
-                                transformOrigin: '50% 100%',
-                                clipPath: `polygon(50% 0%, 100% 100%, 0% 100%)`,
-                            }}
+                            ref={wheelRef}
+                            className="absolute w-full h-full rounded-full transition-transform duration-[4s] ease-out"
+                            style={{ transform: `rotate(${rotation}deg)` }}
                         >
-                            <div
-                                className="absolute top-1/2 left-1/2 w-full h-full transform -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-white font-bold text-xs lg:text-sm text-center"
-                                style={{
-                                    backgroundColor: `hsl(${index * (360 / segmentCount)}, 70%, 50%)`,
-                                    transform: `rotate(90deg) translate(0, -50%) rotate(${-index * segmentDegrees}deg)`,
-                                    clipPath: `polygon(50% 0%, 100% 100%, 0% 100%)`,
-                                    padding: '10px',
-                                }}
-                            >
-                                <span className="p-2 break-words max-w-[80%] overflow-hidden">{category.name}</span>
+                            {categories.map((category, index) => (
+                                <div
+                                    key={category.name}
+                                    className="absolute origin-bottom-center inset-0"
+                                    style={{
+                                        transform: `rotate(${index * segmentDegrees}deg)`,
+                                        transformOrigin: '50% 100%',
+                                        clipPath: `polygon(50% 0%, 100% 100%, 0% 100%)`,
+                                    }}
+                                >
+                                    <div
+                                        className="absolute top-1/2 left-1/2 w-full h-full transform -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-white font-bold text-xs lg:text-sm text-center"
+                                        style={{
+                                            backgroundColor: `hsl(${index * (360 / segmentCount)}, 70%, 50%)`,
+                                            transform: `rotate(90deg) translate(0, -50%) rotate(${-index * segmentDegrees}deg)`,
+                                            clipPath: `polygon(50% 0%, 100% 100%, 0% 100%)`,
+                                            padding: '10px',
+                                        }}
+                                    >
+                                        <span className="p-2 break-words max-w-[80%] overflow-hidden">{category.name}</span>
+                                    </div>
+                                </div>
+                            ))}
+                            {/* Círculo Central */}
+                            <div className="absolute inset-4 bg-gradient-to-br from-rose-600 to-rose-800 rounded-full flex items-center justify-center text-white text-lg font-bold">
+                                Girar!
                             </div>
                         </div>
-                    ))}
-                    {/* Círculo Central */}
-                    <div className="absolute inset-4 bg-gradient-to-br from-rose-600 to-rose-800 rounded-full flex items-center justify-center text-white text-lg font-bold">
-                        Girar!
+                        {/* Ponteiro */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-b-[30px] border-b-rose-500 z-10"></div>
                     </div>
+
+                    {!currentChallenge && !llmLoading && (
+                        <button
+                            onClick={spinWheel}
+                            disabled={spinning}
+                            className={`bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${spinning ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-pink-300`}
+                        >
+                            {spinning ? 'A Girar...' : 'Girar Roleta'}
+                        </button>
+                    )}
+
+                    {llmLoading && (
+                        <div className="mt-6 text-xl text-rose-200">
+                            ✨ A gerar um desafio surpresa...
+                        </div>
+                    )}
+
+                    {chosenCategory && !currentChallenge && !llmLoading && (
+                        <div className="mt-6 text-xl text-rose-200">
+                            Categoria escolhida: <span className="font-semibold text-rose-100">{chosenCategory.name}</span>
+                        </div>
+                    )}
+
+                    {currentChallenge && (
+                        <div className="bg-white bg-opacity-20 p-6 rounded-xl shadow-xl backdrop-blur-sm max-w-sm w-full mx-auto my-4 transform transition-all duration-500 scale-100 opacity-100">
+                            <h3 className="text-2xl font-bold text-rose-100 mb-3">{currentChallenge.type}!</h3>
+                            <p className="text-xl text-white italic leading-relaxed">{currentChallenge.text}</p>
+                            <button
+                                onClick={() => {
+                                    setCurrentChallenge(null);
+                                    setChosenCategory(null);
+                                    setLlmGeneratedText(''); // Clear LLM text for next turn
+                                    onChallengeComplete();
+                                }}
+                                className="mt-6 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
+                            >
+                                Desafio Concluído! Próxima Rodada
+                            </button>
+                        </div>
+                    )}
                 </div>
-                {/* Ponteiro */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full w-0 h-0 border-l-[15px] border-l-transparent border-r-[15px] border-r-transparent border-b-[30px] border-b-rose-500 z-10"></div>
-            </div>
-
-            {!currentChallenge && !llmLoading && (
-                <button
-                    onClick={spinWheel}
-                    disabled={spinning}
-                    className={`bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${spinning ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-pink-300`}
-                >
-                    {spinning ? 'A Girar...' : 'Girar Roleta'}
-                </button>
-            )}
-
-            {llmLoading && (
-                <div className="mt-6 text-xl text-rose-200">
-                    ✨ A gerar um desafio surpresa...
-                </div>
-            )}
-
-            {chosenCategory && !currentChallenge && !llmLoading && (
-                <div className="mt-6 text-xl text-rose-200">
-                    Categoria escolhida: <span className="font-semibold text-rose-100">{chosenCategory.name}</span>
-                </div>
-            )}
-
-            {currentChallenge && (
-                <div className="bg-white bg-opacity-20 p-6 rounded-xl shadow-xl backdrop-blur-sm max-w-sm w-full mx-auto my-4 transform transition-all duration-500 scale-100 opacity-100">
-                    <h3 className="text-2xl font-bold text-rose-100 mb-3">{currentChallenge.type}!</h3>
-                    <p className="text-xl text-white italic leading-relaxed">{currentChallenge.text}</p>
-                    <button
-                        onClick={() => {
-                            setCurrentChallenge(null);
-                            setChosenCategory(null);
-                            setLlmGeneratedText(''); // Clear LLM text for next turn
-                            onChallengeComplete();
-                        }}
-                        className="mt-6 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
-                    >
-                        Desafio Concluído! Próxima Rodada
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-};
-
-// Componente Dados do Desejo
-const DiceGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
-    const [diceResult, setDiceResult] = useState(null);
-    const [rolling, setRolling] = useState(false);
-    const [llmGeneratedIdea, setLlmGeneratedIdea] = useState(null); // Estado para a ideia gerada pelo LLM
-    const [llmLoading, setLlmLoading] = useState(false); // Estado de loading para o LLM
-
-    const diceOptions = {
-        who: [player1Name, player2Name, 'Ambos'],
-        what: ['Beijo', 'Massagem', 'Carícia', 'Sussurro', 'Olhar', 'Palavra'],
-        where: ['Pescoço', 'Orelha', 'Coxa Interna', 'Pés', 'Costas', 'Qualquer lugar'],
-        how: ['Lento', 'Rápido', 'Intenso', 'Suave', 'Com respiração', 'Com mordiscada'],
-    };
-
-    const rollDice = () => {
-        setRolling(true);
-        setLlmGeneratedIdea(null); // Clear previous LLM idea
-        const result = {
-            who: diceOptions.who[Math.floor(Math.random() * diceOptions.who.length)],
-            what: diceOptions.what[Math.floor(Math.random() * diceOptions.what.length)],
-            where: diceOptions.where[Math.floor(Math.random() * diceOptions.where.length)],
-            how: diceOptions.how[Math.floor(Math.random() * diceOptions.how.length)],
+            );
         };
 
-        // Simula animação de rolagem
-        setTimeout(() => {
-            setDiceResult(result);
-            setRolling(false);
-        }, 2000); // 2 segundos de animação
-    };
+        // Componente Dados do Desejo
+        const DiceGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
+            const [diceResult, setDiceResult] = React.useState(null);
+            const [rolling, setRolling] = React.useState(false);
+            const [llmGeneratedIdea, setLlmGeneratedIdea] = React.useState(null); // Estado para a ideia gerada pelo LLM
+            const [llmLoading, setLlmLoading] = React.useState(false); // Estado de loading para o LLM
 
-    // Função para obter uma ideia criativa do LLM (Gemini)
-    const getCreativeIdea = async () => {
-        setLlmLoading(true);
-        setLlmGeneratedIdea(null);
-        try {
-            const prompt = `Com base em 'quem: ${diceResult.who}', 'o quê: ${diceResult.what}', 'onde: ${diceResult.where}', 'como: ${diceResult.how}', crie uma breve e sugestiva ideia de como executar este desafio de forma criativa e sensual para um casal. Aja como um mestre de jogo. Exemplo: 'Beijo intenso no pescoço do Pedro: Enquanto ele te abraça por trás na cozinha, sussurre algo picante e beije intensamente o pescoço dele, deslizando até o ombro.'`;
-            let chatHistory = [];
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-            const payload = { contents: chatHistory };
-            const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const diceOptions = {
+                who: [player1Name, player2Name, 'Ambos'],
+                what: ['Beijo', 'Massagem', 'Carícia', 'Sussurro', 'Olhar', 'Palavra'],
+                where: ['Pescoço', 'Orelha', 'Coxa Interna', 'Pés', 'Costas', 'Qualquer lugar'],
+                how: ['Lento', 'Rápido', 'Intenso', 'Suave', 'Com respiração', 'Com mordiscada'],
+            };
 
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
+            const rollDice = () => {
+                setRolling(true);
+                setLlmGeneratedIdea(null); // Clear previous LLM idea
+                const result = {
+                    who: diceOptions.who[Math.floor(Math.random() * diceOptions.who.length)],
+                    what: diceOptions.what[Math.floor(Math.random() * diceOptions.what.length)],
+                    where: diceOptions.where[Math.floor(Math.random() * diceOptions.where.length)],
+                    how: diceOptions.how[Math.floor(Math.random() * diceOptions.how.length)],
+                };
 
-            if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                setLlmGeneratedIdea(text);
-            } else {
-                console.error("Erro ao gerar ideia com LLM: Estrutura de resposta inesperada.", result);
-                setLlmGeneratedIdea('Não foi possível gerar uma ideia criativa agora. Tente novamente!');
-            }
-        } catch (error) {
-            console.error("Erro na chamada do Gemini API:", error);
-            setLlmGeneratedIdea('Falha na conexão. Tente novamente!');
-        } finally {
-            setLlmLoading(false);
-        }
-    };
+                // Simula animação de rolagem
+                setTimeout(() => {
+                    setDiceResult(result);
+                    setRolling(false);
+                }, 2000); // 2 segundos de animação
+            };
+
+            // Função para obter uma ideia criativa do LLM (Gemini)
+            const getCreativeIdea = async () => {
+                setLlmLoading(true);
+                setLlmGeneratedIdea(null);
+                try {
+                    const prompt = `Com base em 'quem: ${diceResult.who}', 'o quê: ${diceResult.what}', 'onde: ${diceResult.where}', 'como: ${diceResult.how}', crie uma breve e sugestiva ideia de como executar este desafio de forma criativa e sensual para um casal. Aja como um mestre de jogo. Exemplo: 'Beijo intenso no pescoço do Pedro: Enquanto ele te abraça por trás na cozinha, sussurre algo picante e beije intensamente o pescoço dele, deslizando até o ombro.'`;
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setLlmGeneratedIdea(text);
+                    } else {
+                        console.error("Erro ao gerar ideia com LLM: Estrutura de resposta inesperada.", result);
+                        setLlmGeneratedIdea('Não foi possível gerar uma ideia criativa agora. Tente novamente!');
+                    }
+                } catch (error) {
+                    console.error("Erro na chamada do Gemini API:", error);
+                    setLlmGeneratedIdea('Falha na conexão. Tente novamente!');
+                } finally {
+                    setLlmLoading(false);
+                }
+            };
 
 
-    const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
+            const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
 
-    return (
-        <div className="flex flex-col items-center justify-between h-full p-4 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
-                Vez de: <span className="text-rose-300">{currentPlayerName}</span>
-            </h2>
-            <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
-                <h3 className="text-2xl font-bold text-rose-100 mb-4">Dados do Desejo</h3>
-                {!diceResult ? (
-                    <p className="text-lg text-rose-200 mb-6">Rolam os dados para ver o desafio!</p>
-                ) : (
-                    <div className="text-xl text-white space-y-2 mb-6">
-                        <p><span className="font-semibold text-rose-200">Quem:</span> {diceResult.who === 'Ambos' ? `Ambos` : `${diceResult.who}`}</p>
-                        <p><span className="font-semibold text-rose-200">O Quê:</span> {diceResult.what}</p>
-                        <p><span className="font-semibold text-rose-200">Onde:</span> {diceResult.where}</p>
-                        <p><span className="font-semibold text-rose-200">Como:</span> {diceResult.how}</p>
-                        <p className="mt-4 text-rose-100 text-2xl font-bold">
-                            Desafio: {diceResult.what} {diceResult.how} em {diceResult.where} {diceResult.who === 'Ambos' ? 'com o parceiro(a)' : ''}.
-                        </p>
+            return (
+                <div className="flex flex-col items-center justify-between h-full p-4 text-center">
+                    <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
+                        Vez de: <span className="text-rose-300">{currentPlayerName}</span>
+                    </h2>
+                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
+                        <h3 className="text-2xl font-bold text-rose-100 mb-4">Dados do Desejo</h3>
+                        {!diceResult ? (
+                            <p className="text-lg text-rose-200 mb-6">Rolam os dados para ver o desafio!</p>
+                        ) : (
+                            <div className="text-xl text-white space-y-2 mb-6">
+                                <p><span className="font-semibold text-rose-200">Quem:</span> {diceResult.who === 'Ambos' ? `Ambos` : `${diceResult.who}`}</p>
+                                <p><span className="font-semibold text-rose-200">O Quê:</span> {diceResult.what}</p>
+                                <p><span className="font-semibold text-rose-200">Onde:</span> {diceResult.where}</p>
+                                <p><span className="font-semibold text-rose-200">Como:</span> {diceResult.how}</p>
+                                <p className="mt-4 text-rose-100 text-2xl font-bold">
+                                    Desafio: {diceResult.what} {diceResult.how} em {diceResult.where} {diceResult.who === 'Ambos' ? 'com o parceiro(a)' : ''}.
+                                </p>
 
-                        {/* LLM-powered creative idea button and display */}
-                        {!llmGeneratedIdea && !llmLoading && (
+                                {/* LLM-powered creative idea button and display */}
+                                {!llmGeneratedIdea && !llmLoading && (
+                                    <button
+                                        onClick={getCreativeIdea}
+                                        disabled={rolling}
+                                        className="mt-6 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-300"
+                                    >
+                                        ✨ Obter Ideia Criativa
+                                    </button>
+                                )}
+                                {llmLoading && (
+                                    <div className="mt-6 text-lg text-rose-200">
+                                        ✨ A gerar uma ideia...
+                                    </div>
+                                )}
+                                {llmGeneratedIdea && (
+                                    <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
+                                        <span className="font-semibold">Sugestão do ✨Mestre:</span> {llmGeneratedIdea}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        <button
+                            onClick={rollDice}
+                            disabled={rolling}
+                            className={`bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${rolling ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-pink-300`}
+                        >
+                            {rolling ? 'A Rolar...' : 'Rolar os Dados'}
+                        </button>
+                        {diceResult && (
                             <button
-                                onClick={getCreativeIdea}
-                                disabled={rolling}
-                                className="mt-6 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-300"
+                                onClick={() => {
+                                    setDiceResult(null);
+                                    setLlmGeneratedIdea(null);
+                                    onChallengeComplete();
+                                }}
+                                className="mt-4 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
                             >
-                                ✨ Obter Ideia Criativa
+                                Desafio Concluído! Próxima Rodada
                             </button>
                         )}
-                        {llmLoading && (
-                            <div className="mt-6 text-lg text-rose-200">
-                                ✨ A gerar uma ideia...
-                            </div>
-                        )}
-                        {llmGeneratedIdea && (
-                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
-                                <span className="font-semibold">Sugestão do ✨Mestre:</span> {llmGeneratedIdea}
-                            </div>
-                        )}
                     </div>
-                )}
-                <button
-                    onClick={rollDice}
-                    disabled={rolling}
-                    className={`bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${rolling ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-pink-300`}
-                >
-                    {rolling ? 'A Rolar...' : 'Rolar os Dados'}
-                </button>
-                {diceResult && (
-                    <button
-                        onClick={() => {
-                            setDiceResult(null);
-                            setLlmGeneratedIdea(null);
-                            onChallengeComplete();
-                        }}
-                        className="mt-4 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
-                    >
-                        Desafio Concluído! Próxima Rodada
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-};
+                </div>
+            );
+        };
 
-// Componente Baralho do Prazer
-const CardGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
-    const [currentCard, setCurrentCard] = useState(null);
-    const [shuffling, setShuffling] = useState(false);
-    const [llmLoading, setLlmLoading] = useState(false); // Estado de loading para o LLM
+        // Componente Baralho do Prazer
+        const CardGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
+            const [currentCard, setCurrentCard] = React.useState(null);
+            const [shuffling, setShuffling] = React.useState(false);
+            const [llmLoading, setLlmLoading] = React.useState(false); // Estado de loading para o LLM
 
-    const cards = [
-        { type: 'Desejo Secreto', text: 'Qual é uma fantasia que você nunca me contou?' },
-        { type: 'Desejo Secreto', text: 'O que te excita mais em mim que você não costuma expressar?' },
-        { type: 'Desejo Secreto', text: 'Qual lugar inesperado você gostaria que fizéssemos sexo?' },
-        { type: 'Sensações e Toques', text: 'Mostre-me como você gostaria de ser tocado agora.' },
-        { type: 'Sensações e Toques', text: 'Experimente beijar-me de uma forma totalmente diferente.' },
-        { type: 'Sensações e Toques', text: 'Com os olhos vendados, explore-me com as pontas dos dedos por dois minutos.' },
-        { type: 'Conexão Emocional', text: 'O que você mais ama sobre a nossa intimidade?' },
-        { type: 'Conexão Emocional', text: 'Quando você se sente mais conectado(a) comigo sexualmente?' },
-        { type: 'Conexão Emocional', text: 'Descreva um momento em que você se sentiu extremamente desejado(a) por mim.' },
-        { type: 'Desafio Rápido', text: 'Dê um beijo de 10 segundos apaixonado no(a) seu(sua) parceiro(a).' },
-        { type: 'Desafio Rápido', text: 'Sussurre um segredo sexy no ouvido do(a) seu(sua) parceiro(a).' },
-        { type: 'Desafio Rápido', text: 'Troquem de roupas em 2 minutos (opcionalmente).' },
-    ];
+            const cards = [
+                { type: 'Desejo Secreto', text: 'Qual é uma fantasia que você nunca me contou?' },
+                { type: 'Desejo Secreto', text: 'O que te excita mais em mim que você não costuma expressar?' },
+                { type: 'Desejo Secreto', text: 'Qual lugar inesperado você gostaria que fizéssemos sexo?' },
+                { type: 'Sensações e Toques', text: 'Mostre-me como você gostaria de ser tocado agora.' },
+                { type: 'Sensações e Toques', text: 'Experimente beijar-me de uma forma totalmente diferente.' },
+                { type: 'Sensações e Toques', text: 'Com os olhos vendados, explore-me com as pontas dos dedos por dois minutos.' },
+                { type: 'Conexão Emocional', text: 'O que você mais ama sobre a nossa intimidade?' },
+                { type: 'Conexão Emocional', text: 'Quando você se sente mais conectado(a) comigo sexualmente?' },
+                { type: 'Conexão Emocional', text: 'Descreva um momento em que você se sentiu extremamente desejado(a) por mim.' },
+                { type: 'Desafio Rápido', text: 'Dê um beijo de 10 segundos apaixonado no(a) seu(sua) parceiro(a).' },
+                { type: 'Desafio Rápido', text: 'Sussurre um segredo sexy no ouvido do(a) seu(sua) parceiro(a).' },
+                { type: 'Desafio Rápido', text: 'Troquem de roupas em 2 minutos (opcionalmente).' },
+            ];
 
-    const drawCard = () => {
-        setShuffling(true);
-        setCurrentCard(null); // Clear previous card
-        setLlmLoading(false); // Ensure LLM loading is off if drawing from fixed set
-        setTimeout(() => {
-            const randomIndex = Math.floor(Math.random() * cards.length);
-            setCurrentCard(cards[randomIndex]);
-            setShuffling(false);
-        }, 1500); // Simula embaralhamento
-    };
+            const drawCard = () => {
+                setShuffling(true);
+                setCurrentCard(null); // Clear previous card
+                setLlmLoading(false); // Ensure LLM loading is off if drawing from fixed set
+                setTimeout(() => {
+                    const randomIndex = Math.floor(Math.random() * cards.length);
+                    setCurrentCard(cards[randomIndex]);
+                    setShuffling(false);
+                }, 1500); // Simula embaralhamento
+            };
 
-    // Função para criar uma nova carta com o LLM (Gemini)
-    const createLlmCard = async () => {
-        setLlmLoading(true);
-        setCurrentCard(null); // Clear previous card
-        try {
-            const prompt = `Crie uma nova carta para um baralho de prazer de casais. Pode ser uma 'Verdade Secreta', 'Sensação e Toque', ou 'Conexão Emocional'. Crie apenas o texto da pergunta ou desafio, sem introduções. Exemplo: 'O que te faz sentir mais poderoso(a) na cama?' ou 'Com os olhos vendados, descreva o que sente ao tocar meu corpo'.`;
-            let chatHistory = [];
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-            const payload = { contents: chatHistory };
-            const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            // Função para criar uma nova carta com o LLM (Gemini)
+            const createLlmCard = async () => {
+                setLlmLoading(true);
+                setCurrentCard(null); // Clear previous card
+                try {
+                    const prompt = `Crie uma nova carta para um baralho de prazer de casais. Pode ser uma 'Verdade Secreta', 'Sensação e Toque', ou 'Conexão Emocional'. Crie apenas o texto da pergunta ou desafio, sem introduções. Exemplo: 'O que te faz sentir mais poderoso(a) na cama?' ou 'Com os olhos vendados, descreva o que sente ao tocar meu corpo'.`;
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
 
-            if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                // Try to infer type, or default
-                let type = 'Carta Gerada';
-                if (text.toLowerCase().includes('verdade secreta')) type = 'Desejo Secreto';
-                else if (text.toLowerCase().includes('sensação e toque')) type = 'Sensações e Toques';
-                else if (text.toLowerCase().includes('conexão emocional')) type = 'Conexão Emocional';
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        // Try to infer type, or default
+                        let type = 'Carta Gerada';
+                        if (text.toLowerCase().includes('verdade secreta')) type = 'Desejo Secreto';
+                        else if (text.toLowerCase().includes('sensação e toque')) type = 'Sensações e Toques';
+                        else if (text.toLowerCase().includes('conexão emocional')) type = 'Conexão Emocional';
 
-                setCurrentCard({ type: type, text: text });
-            } else {
-                console.error("Erro ao gerar carta com LLM: Estrutura de resposta inesperada.", result);
-                setCurrentCard({ type: 'Erro', text: 'Não foi possível gerar uma nova carta. Tente novamente!' });
-            }
-        } catch (error) {
-            console.error("Erro na chamada do Gemini API:", error);
-            setCurrentCard({ type: 'Erro', text: 'Falha na conexão. Tente novamente!' });
-        } finally {
-            setLlmLoading(false);
-        }
-    };
+                        setCurrentCard({ type: type, text: text });
+                    } else {
+                        console.error("Erro ao gerar carta com LLM: Estrutura de resposta inesperada.", result);
+                        setCurrentCard({ type: 'Erro', text: 'Não foi possível gerar uma nova carta. Tente novamente!' });
+                    }
+                } catch (error) {
+                    console.error("Erro na chamada do Gemini API:", error);
+                    setCurrentCard({ type: 'Erro', text: 'Falha na conexão. Tente novamente!' });
+                } finally {
+                    setLlmLoading(false);
+                }
+            };
 
 
-    const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
+            const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
 
-    return (
-        <div className="flex flex-col items-center justify-between h-full p-4 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
-                Vez de: <span className="text-rose-300">{currentPlayerName}</span>
-            </h2>
-            <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
-                <h3 className="text-2xl font-bold text-rose-100 mb-4">Baralho do Prazer</h3>
-                {!currentCard && !llmLoading ? (
-                    <p className="text-lg text-rose-200 mb-6">Puxe uma carta ou crie uma nova com IA!</p>
-                ) : (
-                    <div className="text-xl text-white space-y-2 mb-6">
-                        {llmLoading ? (
-                            <p className="text-lg text-rose-200">✨ A criar nova carta...</p>
+            return (
+                <div className="flex flex-col items-center justify-between h-full p-4 text-center">
+                    <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
+                        Vez de: <span className="text-rose-300">{currentPlayerName}</span>
+                    </h2>
+                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
+                        <h3 className="text-2xl font-bold text-rose-100 mb-4">Baralho do Prazer</h3>
+                        {!currentCard && !llmLoading ? (
+                            <p className="text-lg text-rose-200 mb-6">Puxe uma carta ou crie uma nova com IA!</p>
                         ) : (
-                            <>
-                                <p><span className="font-semibold text-rose-200">{currentCard.type}:</span></p>
-                                <p className="mt-2 text-rose-100 text-2xl font-bold italic leading-relaxed">{currentCard.text}</p>
-                            </>
+                            <div className="text-xl text-white space-y-2 mb-6">
+                                {llmLoading ? (
+                                    <p className="text-lg text-rose-200">✨ A criar nova carta...</p>
+                                ) : (
+                                    <>
+                                        <p><span className="font-semibold text-rose-200">{currentCard.type}:</span></p>
+                                        <p className="mt-2 text-rose-100 text-2xl font-bold italic leading-relaxed">{currentCard.text}</p>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+                            <button
+                                onClick={drawCard}
+                                disabled={shuffling || llmLoading}
+                                className={`bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${shuffling || llmLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-pink-300`}
+                            >
+                                {shuffling ? 'A Embaralhar...' : 'Puxar Carta Existente'}
+                            </button>
+                            <button
+                                onClick={createLlmCard}
+                                disabled={shuffling || llmLoading}
+                                className={`bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${shuffling || llmLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-purple-300`}
+                            >
+                                ✨ Criar Nova Carta
+                            </button>
+                        </div>
+                        {currentCard && (
+                            <button
+                                onClick={() => {
+                                    setCurrentCard(null);
+                                    onChallengeComplete();
+                                }}
+                                className="mt-6 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
+                            >
+                                Desafio Concluído! Próxima Rodada
+                            </button>
                         )}
                     </div>
-                )}
-                <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-                    <button
-                        onClick={drawCard}
-                        disabled={shuffling || llmLoading}
-                        className={`bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${shuffling || llmLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-pink-300`}
-                    >
-                        {shuffling ? 'A Embaralhar...' : 'Puxar Carta Existente'}
-                    </button>
-                    <button
-                        onClick={createLlmCard}
-                        disabled={shuffling || llmLoading}
-                        className={`bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${shuffling || llmLoading ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-purple-300`}
-                    >
-                        ✨ Criar Nova Carta
-                    </button>
                 </div>
-                {currentCard && (
-                    <button
-                        onClick={() => {
-                            setCurrentCard(null);
-                            onChallengeComplete();
-                        }}
-                        className="mt-6 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
-                    >
-                        Desafio Concluído! Próxima Rodada
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-};
+            );
+        };
 
-// Componente Rota do Prazer
-const PathGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
-    const [currentStationIndex, setCurrentStationIndex] = useState(0);
-    const [llmLoading, setLlmLoading] = useState(false);
-    const [llmGeneratedDetail, setLlmGeneratedDetail] = useState('');
-    const [llmEnvironmentSuggestion, setLlmEnvironmentSuggestion] = useState(''); // Novo estado para sugestão de ambiente
-    const [llmEnvironmentLoading, setLlmEnvironmentLoading] = useState(false); // Novo estado de loading
-    const [routeCompleted, setRouteCompleted] = useState(false);
+        // Componente Rota do Prazer
+        const PathGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
+            const [currentStationIndex, setCurrentStationIndex] = React.useState(0);
+            const [llmLoading, setLlmLoading] = React.useState(false);
+            const [llmGeneratedDetail, setLlmGeneratedDetail] = React.useState('');
+            const [llmEnvironmentSuggestion, setLlmEnvironmentSuggestion] = React.useState(''); // Novo estado para sugestão de ambiente
+            const [llmEnvironmentLoading, setLlmEnvironmentLoading] = React.useState(false); // Novo estado de loading
+            const [routeCompleted, setRouteCompleted] = React.useState(false);
 
-    const stations = [
-        { name: 'Estação 1: Abertura Sensorial', task: 'Troquem beijos e carícias lentas nos braços e pescoço um do outro. Concentrem-se na sensação.' },
-        { name: 'Estação 2: Desejo Sussurrado', task: 'Sussurrem uma fantasia ou um desejo secreto um no ouvido do outro.' },
-        { name: 'Estação 3: Toque Exploratório', task: 'Com os olhos vendados, um parceiro explora o rosto do outro apenas com as pontas dos dedos.' },
-        { name: 'Estação 4: Dança Íntima', task: 'Escolham uma música e dancem de forma sensual, próximos um do outro.' },
-        { name: 'Estação 5: O Clímax da Rota', task: 'Uma atividade íntima escolhida pelos dois para encerrar a rota.' }
-    ];
+            const stations = [
+                { name: 'Estação 1: Abertura Sensorial', task: 'Troquem beijos e carícias lentas nos braços e pescoço um do outro. Concentrem-se na sensação.' },
+                { name: 'Estação 2: Desejo Sussurrado', task: 'Sussurrem uma fantasia ou um desejo secreto um no ouvido do outro.' },
+                { name: 'Estação 3: Toque Exploratório', task: 'Com os olhos vendados, um parceiro explora o rosto do outro apenas com as pontas dos dedos.' },
+                { name: 'Estação 4: Dança Íntima', task: 'Escolham uma música e dancem de forma sensual, próximos um do outro.' },
+                { name: 'Estação 5: O Clímax da Rota', task: 'Uma atividade íntima escolhida pelos dois para encerrar a rota.' }
+            ];
 
-    const isLastStation = currentStationIndex === stations.length - 1;
-    const currentStation = stations[currentStationIndex];
+            const isLastStation = currentStationIndex === stations.length - 1;
+            const currentStation = stations[currentStationIndex];
 
-    const generateStationDetail = async () => {
-        setLlmLoading(true);
-        setLlmGeneratedDetail('');
-        try {
-            const prompt = `Detalhe a tarefa para um casal de forma sensual e criativa: "${currentStation.task}". Inclua os nomes dos jogadores, se possível: ${player1Name} e ${player2Name}. Seja sugestivo e inspirador.`;
-            let chatHistory = [];
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-            const payload = { contents: chatHistory };
-            const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const generateStationDetail = async () => {
+                setLlmLoading(true);
+                setLlmGeneratedDetail('');
+                try {
+                    const prompt = `Detalhe a tarefa para um casal de forma sensual e criativa: "${currentStation.task}". Inclua os nomes dos jogadores, se possível: ${player1Name} e ${player2Name}. Seja sugestivo e inspirador.`;
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
 
-            if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                setLlmGeneratedDetail(text);
-            } else {
-                console.error("Erro ao gerar detalhe da estação com LLM: Estrutura de resposta inesperada.", result);
-                setLlmGeneratedDetail('Não foi possível gerar um detalhe agora. Tente novamente!');
-            }
-        } catch (error) {
-            console.error("Erro na chamada do Gemini API:", error);
-            setLlmGeneratedDetail('Falha na conexão. Tente novamente!');
-        } finally {
-            setLlmLoading(false);
-        }
-    };
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setLlmGeneratedDetail(text);
+                    } else {
+                        console.error("Erro ao gerar detalhe da estação com LLM: Estrutura de resposta inesperada.", result);
+                        setLlmGeneratedDetail('Não foi possível gerar um detalhe agora. Tente novamente!');
+                    }
+                } catch (error) {
+                    console.error("Erro na chamada do Gemini API:", error);
+                    setLlmGeneratedDetail('Falha na conexão. Tente novamente!');
+                } finally {
+                    setLlmLoading(false);
+                }
+            };
 
-    // Função para gerar sugestão de ambiente com LLM
-    const generateEnvironmentSuggestion = async () => {
-        setLlmEnvironmentLoading(true);
-        setLlmEnvironmentSuggestion('');
-        try {
-            const prompt = `Para a tarefa "${currentStation.task}" da Estação "${currentStation.name}", sugira elementos para criar um ambiente sensual e imersivo, como tipos de música, iluminação, ou outros detalhes para o casal. Seja conciso e criativo.`;
-            let chatHistory = [];
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-            const payload = { contents: chatHistory };
-            const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            // Função para gerar sugestão de ambiente com LLM
+            const generateEnvironmentSuggestion = async () => {
+                setLlmEnvironmentLoading(true);
+                setLlmEnvironmentSuggestion('');
+                try {
+                    const prompt = `Para a tarefa "${currentStation.task}" da Estação "${currentStation.name}", sugira elementos para criar um ambiente sensual e imersivo, como tipos de música, iluminação, ou outros detalhes para o casal. Seja conciso e criativo.`;
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
 
-            if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                setLlmEnvironmentSuggestion(text);
-            } else {
-                console.error("Erro ao gerar sugestão de ambiente com LLM: Estrutura de resposta inesperada.", result);
-                setLlmEnvironmentSuggestion('Não foi possível gerar uma sugestão de ambiente agora. Tente novamente!');
-            }
-        } catch (error) {
-            console.error("Erro na chamada do Gemini API (ambiente):", error);
-            setLlmEnvironmentSuggestion('Falha na conexão. Tente novamente!');
-        } finally {
-            setLlmEnvironmentLoading(false);
-        }
-    };
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setLlmEnvironmentSuggestion(text);
+                    } else {
+                        console.error("Erro ao gerar sugestão de ambiente com LLM: Estrutura de resposta inesperada.", result);
+                        setLlmEnvironmentSuggestion('Não foi possível gerar uma sugestão de ambiente agora. Tente novamente!');
+                    }
+                } catch (error) {
+                    console.error("Erro na chamada do Gemini API (ambiente):", error);
+                    setLlmEnvironmentSuggestion('Falha na conexão. Tente novamente!');
+                } finally {
+                    setLlmEnvironmentLoading(false);
+                }
+            };
 
 
-    const nextStation = () => {
-        if (currentStationIndex < stations.length - 1) {
-            setCurrentStationIndex(currentStationIndex + 1);
-            setLlmGeneratedDetail(''); // Clear detail for next station
-            setLlmEnvironmentSuggestion(''); // Clear environment suggestion for next station
-            onChallengeComplete(); // Signal turn change or completion if needed
-        } else {
-            setRouteCompleted(true); // Mark route as completed
-            onChallengeComplete(); // Signal end of game/turn
-        }
-    };
+            const nextStation = () => {
+                if (currentStationIndex < stations.length - 1) {
+                    setCurrentStationIndex(currentStationIndex + 1);
+                    setLlmGeneratedDetail(''); // Clear detail for next station
+                    setLlmEnvironmentSuggestion(''); // Clear environment suggestion for next station
+                    onChallengeComplete(); // Signal turn change or completion if needed
+                } else {
+                    setRouteCompleted(true); // Mark route as completed
+                    onChallengeComplete(); // Signal end of game/turn
+                }
+            };
 
-    const resetGame = () => {
-        setCurrentStationIndex(0);
-        setLlmGeneratedDetail('');
-        setLlmEnvironmentSuggestion('');
-        setRouteCompleted(false); // Reset completion state
-        onChallengeComplete(); // Reset turn as well
-    };
+            const resetGame = () => {
+                setCurrentStationIndex(0);
+                setLlmGeneratedDetail('');
+                setLlmEnvironmentSuggestion('');
+                setRouteCompleted(false); // Reset completion state
+                onChallengeComplete(); // Reset turn as well
+            };
 
-    const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
+            const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
 
-    if (routeCompleted) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-                <h3 className="text-4xl font-bold text-white mb-6">Parabéns!</h3>
-                <p className="text-2xl text-rose-200 mb-8">A Rota do Prazer foi concluída com sucesso!</p>
-                <button
-                    onClick={resetGame}
-                    className="bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-300"
-                >
-                    Recomeçar Rota
-                </button>
-            </div>
-        );
-    }
-
-    return (
-        <div className="flex flex-col items-center justify-between h-full p-4 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
-                Vez de: <span className="text-rose-300">{currentPlayerName}</span>
-            </h2>
-            <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
-                <h3 className="text-2xl font-bold text-rose-100 mb-4">{currentStation.name}</h3>
-                <p className="text-xl text-white italic leading-relaxed mb-6">
-                    {currentStation.task}
-                </p>
-
-                <div className="flex flex-col sm:flex-row justify-center gap-4 mb-4">
-                    {!llmGeneratedDetail && !llmLoading && (
+            if (routeCompleted) {
+                return (
+                    <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+                        <h3 className="text-4xl font-bold text-white mb-6">Parabéns!</h3>
+                        <p className="text-2xl text-rose-200 mb-8">A Rota do Prazer foi concluída com sucesso!</p>
                         <button
-                            onClick={generateStationDetail}
-                            className="mt-4 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-300"
+                            onClick={resetGame}
+                            className="bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-300"
                         >
-                            ✨ Detalhar Tarefa
+                            Recomeçar Rota
                         </button>
-                    )}
-
-                    {!llmEnvironmentSuggestion && !llmEnvironmentLoading && (
-                        <button
-                            onClick={generateEnvironmentSuggestion}
-                            className="mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-yellow-300"
-                        >
-                            ✨ Sugestão de Ambiente
-                        </button>
-                    )}
-                </div>
-
-                {llmLoading && (
-                    <div className="mt-4 text-lg text-rose-200">
-                        ✨ A detalhar a tarefa...
                     </div>
-                )}
-
-                {llmGeneratedDetail && (
-                    <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
-                        <span className="font-semibold">Sugestão do ✨Mestre:</span> {llmGeneratedDetail}
-                    </div>
-                )}
-
-                {llmEnvironmentLoading && (
-                    <div className="mt-4 text-lg text-rose-200">
-                        ✨ A gerar sugestão de ambiente...
-                    </div>
-                )}
-
-                {llmEnvironmentSuggestion && (
-                    <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
-                        <span className="font-semibold">Ambiente Sugerido:</span> {llmEnvironmentSuggestion}
-                    </div>
-                )}
-
-                <button
-                    onClick={nextStation}
-                    className="mt-6 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
-                >
-                    {isLastStation ? 'Concluir Rota!' : 'Próxima Estação'}
-                </button>
-            </div>
-        </div>
-    );
-};
-
-// Componente Jogo Kamasutra
-const KamasutraGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
-    const [currentPosition, setCurrentPosition] = useState(null);
-    const [drawing, setDrawing] = useState(false);
-    const [llmTip, setLlmTip] = useState(null); // Novo estado para dicas da IA
-    const [llmTipLoading, setLlmTipLoading] = useState(false); // Novo estado de loading para dicas
-
-    // Hardcoded positions based on the provided PDF, adjusted for conciseness and clarity
-    // These will be used to create prompts for image generation
-    const kamasutraPositions = [
-        { name: "Freira", description: "No sexo, é importante sentir-se relaxado e comportar-se livremente, ir além dos limites. A mulher deita-se de costas, com as pernas esticadas e juntas, e o homem se posiciona sobre ela, com o corpo ereto, apoiando-se nos braços para não tocar o corpo da mulher, apenas a penetrando." },
-        { name: "Tigre", description: "Mesmo que seu parceiro costumasse tomar tudo em suas mãos, você não deve ficar de braços cruzados. Acrescente um pouco de paixão, solte as garras e mostre. A mulher se ajoelha de quatro, o homem por trás, com ela arqueando as costas para ele." },
-        { name: "Conchinha", description: "Os corpos estão emaranhados e quentes, e você quer gritar de alegria. Posição conchinha surpreendentemente combina. Ambos deitam-se de lado, um de frente para as costas do outro, abraçados." },
-        { name: "Soldado", description: "Se seu homem está cansado e quer relaxar, você é a melhor pessoa para ajudá-lo com isso e tornar o processo de relaxamento muito eficiente e eficaz. O homem deita-se de costas, pernas abertas, e a mulher senta-se sobre ele, de frente para os pés dele." },
-        { name: "Cleópatra", description: "A mulher dirige e ordena, como se ela permitisse que seu parceiro masculino tocasse seu corpo, observando tudo de lado. A parceira senta-se em suas pernas. A mulher senta-se de frente para o homem, com as pernas dele em volta da cintura dela." },
-        { name: "Idílio", description: "O sexo oral é outra versão de intimidade. Se você estiver completamente confiante em seu parceiro, fechar não só fisicamente, mas também emocionalmente. Um parceiro deita-se de costas, e o outro ajoelha-se entre as pernas, realizando sexo oral." },
-        { name: "Chama", description: "Paixão nos corpos ardem mais e mais, e você não pode mais suportar seu desejo; rendam-se uns aos outros. A mulher fica de pé, inclinando-se para trás em um objeto firme, e o homem a penetra por trás, de pé." },
-        { name: "Câncer", description: "Se você gosta de beijar durante o sexo, experimente esta posição, não pare para seduzir um ao outro no processo de relações sexuais e sua experiência será inacreditável. A mulher deita-se de costas, com as pernas elevadas sobre os ombros do homem, que está ajoelhado." },
-        { name: "Gancho", description: "Se coloque do melhor lado para seu parceiro, ofereça-lhe para fazer sexo em frente a um espelho. Nesta posição é tão fácil enfatizar todas as suas vantagens. Ambos de pé, um de frente para o outro, com as pernas entrelaçadas em volta da cintura." },
-        { name: "Êxtase", description: "Esta é a razão pela qual você fica louco por causa da eternidade, das penetrações, dos toques e até mesmo de um olhar. O homem deita-se de costas na horizontal. A mulher senta-se sobre o homem, de costas para ele, com as pernas para fora, enquanto ele a segura pela cintura." },
-        { name: "Clip", description: "Cada pessoa deve ter seu livro invisível de relações íntimas e é muito importante vincular as posições favoritas, que você vai querer usar depois. A mulher deita-se de lado, pernas unidas e dobradas, e o homem se posiciona por trás, abraçando-a firmemente." },
-        { name: "Escavações", description: "Cada posição dá aos parceiros uma nova experiência. Se você gosta de sexo por trás, tente esta não uma versão comum. A mulher se ajoelha de quatro, e o homem a penetra por trás, com ele também ajoelhado." },
-        { name: "Harmonia", description: "Nesta posição você não precisa pensar em nada, desconectar seus pensamentos, levar um ao outro e desfrutar de seu parceiro, procurar harmonia nas proximidades. Ambos deitam-se de frente, pernas entrelaçadas, em total contato visual." },
-        { name: "Ape", description: "É impossível controlar a situação, quando o papel do cavaleiro desempenha um sedutor parceiro feminino, todo o poder está nas mãos das mulheres e o ritmo. A mulher está deitada de bruços, com as pernas elevadas, e o homem se posiciona por cima, de joelhos." },
-        { name: "Cavaleiro", description: "A mulher pega o volante em suas mãos, ela lidera completamente o processo, ela vê o objetivo e não vê nenhum obstáculo. O homem deita-se de costas, coloca. A mulher senta-se de frente para o homem, de joelhos, sobre ele." },
-        { name: "Encadernação", description: "Os corpos estão em estreito contato um com o outro, e ainda mais nus prometem aos dois parceiros um mar de ternura e prazer. Ambos deitam-se de lado, um de frente para o outro, com as pernas entrelaçadas, como se estivessem 'encadernados'." },
-        { name: "Escravo do Sexo", description: "Se você deseja provar sua fidelidade e devoção a seu único parceiro e está confiante com ele como consigo mesmo, encarne seus desejos orais mais secretos. Um parceiro sentado, outro de joelhos à frente, realizando sexo oral, com as mãos atadas." },
-        { name: "Gorge", description: "Se você tiver pernas muito elegantes e esbeltas, será um crime enorme escondê-las de seu parceiro. A mulher deita-se confortavelmente de costas, sua cabeça. A mulher deita-se de costas, com as pernas esticadas para cima e o homem de pé, realizando sexo oral." },
-        { name: "Livro", description: "É necessário aprender seu parceiro gradual e completamente, cada parte de seu corpo, cada reação e excitação, só então você será capaz de satisfazê-lo completamente. Ambos deitam-se de lado, um de frente para o outro, como um livro aberto." },
-        { name: "Estilo Indiano", description: "Movimentos durante uma relação sexual nesta posição são muito semelhantes à dança. Não é motivo para fazer sexo em público, mas apenas mais uma versão. Ambos sentados, um de frente para o outro, com as pernas entrelaçadas, como em uma dança indiana." },
-        { name: "Gota de Neve", description: "A parte íntima em qualquer relacionamento é um componente importante deles e se você quiser refrescar seu sexo, experimente não apenas as posições, mas. A mulher deita-se de costas, com as pernas dobradas e elevadas, e o homem a penetra por cima, de pé." },
-        { name: "Parede", description: "Se você adora sexo em lugares picantes ou incomuns, então ponha esta posição em evidência e simplesmente encontre algo em que se apoiar. A mulher de frente para uma parede, apoiando as mãos, e o homem por trás." },
-        { name: "Broto", description: "Desejo aumenta a cada momento, o estado emocional aumenta alto, mais alguns segundos e você fica nirvana, o que pode ser melhor? O homem deita-se confortavelmente de costas. A mulher se agacha sobre ele, de frente, com as pernas abertas, como um broto florescendo." },
-        { name: "Cachoeira", description: "Um coquetel de toques suaves, beijos apaixonados, olhos ardentes e desejos insatisfeitos, você precisa beber junto, nesta posição, e até a última gota. A mulher deita-se de costas, com as pernas elevadas e caindo sobre a borda de uma superfície, e o homem de pé à frente." },
-        { name: "Basset Hound", description: "Desde o primeiro toque até o último empurrão seu corpo deve queimar de desejo. Esta posição é apenas um caminho para o prazer. A mulher de bruços, com as pernas levantadas e cruzadas, e o homem por trás, apoiando-se nos cotovelos, como um Basset Hound." },
-        { name: "Tornado", description: "Puxe seu parceiro em um turbilhão de emoções brilhantes, leve-o ao êxtase com uma culminação imprevisível, drene todo o seu corpo e, em troca, você receberá muito mais. Ambos de pé, um abraçando o outro e girando, como em um tornado." },
-        { name: "Balançar", description: "Subir e descer, como se seu corpo flutuasse sem peso, uma sensação do toque quente das mãos e um prazer de calor ardente que penetra nos corpos dos parceiros. Um parceiro sentado em uma cadeira, o outro no colo, balançando os quadris." },
-        { name: "Tulipa", description: "Aqui é uma posição muito sensata. A mulher dirige, mas o homem controla. Nesta posição, o parceiro masculino se deita e se agacha para que a parceira se. O homem deita-se de costas, e a mulher senta-se sobre ele de frente, com as pernas dobradas para fora, como pétalas de tulipa." },
-        { name: "Colher", description: "Esta posição é particularmente relevante pela manhã, quando sua ereção se faz sentir, e a parceira está dormindo por perto. É perfeita para despertar o. Ambos deitam-se de lado, um atrás do outro, como duas colheres." },
-        { name: "Sussurro", description: "Muito gentilmente e muito docemente acaricia seu pênis com sua boca, o parceiro masculino será louco por seus esforços, especialmente nesta posição. Um parceiro ajoelhado e o outro sentado em frente, cochichando no ouvido, com as pernas entrelaçadas." },
-        { name: "Inquisidor", description: "Esta posição merecidamente recebeu exatamente este nome fatídico, porque a mulher está no poder de um homem de todo o coração e é ele quem decide quando. A mulher senta-se em uma cadeira, e o homem se ajoelha à frente, com as mãos atadas, aguardando." },
-        { name: "Círculo", description: "Aqui está uma posição picante que simplifica muito o sexo oral, além de torná-lo muito mais sofisticado e variado. O homem e a mulher ficam deitados de. Ambos sentados, um de frente para o outro, formando um círculo com os corpos." },
-        { name: "Disco", description: "Uma pessoa não pode sequer imaginar uma dança melhor que a dança do amor, aprender mais movimentos, posições, aprender a reconhecer os desejos de seu parceiro. Ambos de pé, abraçados, girando em um disco de dança." },
-        { name: "Barco", description: "Tocando a cada centímetro dos corpos, você se sente mais profundo e sente mais, você trabalha como um único organismo, que é movido pelo desejo. Ambos de bruços, um sobre o outro, como um barco flutuando." },
-        { name: "Vela", description: "Desejando ser um com o parceiro, não é obrigatório estar procurando qualquer lugar apropriado, será suficiente ter desejo e um pouco de imaginação. Um parceiro deita-se de costas, e o outro senta-se sobre ele, com as pernas retas para cima, como uma vela." },
-        { name: "Straddle", description: "A mulher por cima é perfeita para homens que querem relaxar e se divertir, por isso você deve obviamente notar esta posição. O homem deita-se de costas. A mulher senta-se sobre ele, de frente, com as pernas abertas, cavalgando-o." },
-        { name: "Aquário", description: "Corpos e pensamentos nus são unidos, você está na mesma posição, mas cada parceiro desempenha seu próprio papel pessoal. A mulher deita-se abrindo suas. A mulher deita-se de costas, com as pernas abertas, e o homem se posiciona sobre ela, com os corpos submersos em uma banheira." },
-        { name: "Claquete", description: "Precisamos ter sexo não tanto para satisfazer nossos desejos, mas para ter prazer, para chegar ao êxtase, então sua vida sexual não será rotineira e entediante. Um parceiro deita-se, e o outro se posiciona sobre ele, batendo as mãos como uma claquete de cinema." },
-        { name: "Gato", description: "Mesmo a posição mais simples pode trazer uma experiência inesquecível para os parceiros, ou vice-versa, para ser outro tick na lista das variantes estudadas. Ambos de quatro, com as costas arqueadas, como gatos." },
-        { name: "Sereia", description: "É difícil encontrar alguém que possa satisfazê-lo na vida e na cama. Se você conseguiu encontrar, apreciar o que você tem, entregar-se completamente a. Um parceiro deita-se de lado, com as pernas unidas como uma cauda de sereia, e o outro o abraça por trás." },
-        { name: "Ônibus", description: "É difícil encontrar alguém que possa satisfazê-lo na vida e na cama. Se você conseguiu encontrar, apreciar o que você tem, entregar-se completamente a. Ambos sentados, um atrás do outro, como em um ônibus, com o de trás abraçando o da frente." },
-        // Posições do PDF Kamasutra (seleção para ilustração de IA)
-        { name: "Iris", description: "Esta é a posição, na qual é possível combinar o sexo sensual e irritável, acelerando, dizendo vulgaridades, acariciando-se mutuamente e beijando-se apaixonadamente. A mulher deita-se de bruços, e o homem a penetra por trás, apoiando-se nos cotovelos." },
-        { name: "Bancada", description: "Sexo confortável em condições confortáveis, você pode continuar assistindo seu programa favorito de TV, embora mal se lembre do que viu. Um parceiro deita-se de costas sobre uma bancada, com as pernas para cima, e o outro se posiciona de frente, de pé." },
-        { name: "Déjà Vu", description: "Todo o tempo ama seu parceiro como se pela primeira vez, se desse completamente, se mostrasse não escondendo suas emoções, como se esta fosse a última. Ambos de frente, ajoelhados, com os corpos entrelaçados em um abraço íntimo, revivendo um momento." },
-        { name: "Cinto", description: "Quando você sabe do que seu parceiro gosta, você o sente do chão das palavras, você pode mostrar cada marca de nascimento em seu corpo com os olhos fechados. Um parceiro está sentado, e o outro está de joelhos à frente, com um cinto sendo usado para um toque sensual." },
-        { name: "Descarga", description: "Por vezes o homem sente-se fraco e, portanto, pode recusar o sexo ou ter uma ereção fraca. Para ajudar seu parceiro masculino a ter relações sexuais, use esta posição. O homem deita-se de costas, e a mulher senta-se sobre ele, de frente, com as pernas abertas, como se estivesse drenando a energia dele." },
-        { name: "Fruta Proibida", description: "Aqui está uma posição surpreendente para o cunnilingus que irá encantar sua parceira feminina e fará com que ela se arrepie de prazer. A mulher levanta. A mulher deita-se de costas, com as pernas levantadas e abertas, e o homem se posiciona para o cunnilingus." },
-        { name: "Escorpião", description: "Aqui é uma posição picante que simplifica muito o sexo oral, além de torná-lo muito mais sofisticado e variado. O homem e a mulher ficam deitados de lado. Um parceiro deita-se de bruços, e o outro ajoelha-se por trás, levantando as pernas do primeiro e apoiando-as nos ombros, com o corpo curvado sobre o parceiro, como um escorpião." },
-        { name: "Olimpo", description: "Para subir ao céu e descer na velocidade infinita – não importa se você está nos braços dele. O homem pega a mulher como se a espetasse em seu pênis. O homem de pé, segurando a mulher no colo, com as pernas dela em volta da cintura, elevando-a como se estivesse nas alturas do Olimpo." },
-        { name: "Profundidade", description: "Tamanho do pênis não é tanto importante, mas um conhecimento, como usá-lo, mas se você quiser penetrar profundamente possível em sua parceira, esta posição seria útil. Ambos de bruços, um atrás do outro, com o parceiro da frente arqueando as costas para a penetração profunda." },
-        { name: "Vênus", description: "Mesmo se você pensa que é de planetas diferentes, fazendo amor, você se tornará mais próximo. A mulher fica de pé, inclina-se ligeiramente para frente. A mulher de pé, com as pernas ligeiramente afastadas, e o homem a penetra por trás, de pé, abraçando-a." },
-        { name: "Fechadura", description: "Durante o sexo os corpos podem estar ligados com abraços, brinquedos temáticos diferentes ou uma posição incomum, mas é importante que os parceiros se. Ambos abraçados, com os corpos entrelaçados como uma fechadura." },
-        { name: "Avalanche", description: "A sensação de desejo aumenta cada vez mais, parece que em breve vai estourar, tremores nos braços e joelhos não é um obstáculo, porque você é como uma. Ambos de bruços, um em cima do outro, rolando juntos em uma 'avalancha' de paixão." },
-        { name: "Rodeio", description: "Quando não há apenas um raio entre os parceiros, mas um disparo quando eles se devoram uns aos outros com os olhos e não podem saturar-se uns aos outros. A mulher senta-se de frente para o homem, no colo dele, simulando um 'rodeio'." },
-        { name: "Berço", description: "É improvável que você adormeça nesta posição, para obter um orgasmo é possível, mas para adormecer – nunca, você não terá tempo para dormir, nem mesmo tente. Um parceiro deita-se de costas, e o outro deita-se sobre ele, abraçando-o como um berço." },
-        { name: "Borboleta", description: "Delicado e bonito, ela se abre para seu homem, oferecendo-se sem deixar rastro! Como você pode resistir a tal tentação?! O homem deita-se de costas e abre suas pernas. A mulher senta-se sobre ele, de frente, com as pernas abertas como asas de borboleta." },
-        { name: "Sinfonia", description: "É uma posição muito delicada na qual exatamente o homem assume o controle. A mulher convenientemente deita-se de lado, dobra ligeiramente os joelhos e. Ambos de lado, em um abraço íntimo, com movimentos suaves e harmoniosos como uma sinfonia." },
-        { name: "Concha", description: "Muitos homens amam sexo oral e tentam persuadir uma mulher a esse tipo de intimidade. Se você pratica este tipo de sexo, não deve ser banal, esta posição. Um parceiro deita-se de costas, e o outro se posiciona para o sexo oral, com os corpos curvados como uma concha." },
-        { name: "Yin-Yang", description: "Prelude pode ser bastante diversificado, e esta opção é ideal para o aquecimento, ou mesmo a plena satisfação de sua parceira, ela certamente ficará satisfeita. Ambos deitam-se de lado, um de frente para o outro, formando um círculo com os corpos, como o símbolo Yin-Yang." },
-        { name: "Exercício", description: "Aqui está uma opção muito interessante e conveniente de 69 posições. Se você pratica sexo oral com seu parceiro, não deixe de anotar isso. Ambos de bruços, com a cabeça de um na área genital do outro, como um exercício de flexibilidade." },
-        { name: "Cão Preguiçoso", description: "Esta posição é relevante para homens com boa preparação física e mulheres com pernas longas. É claro que não há restrições, mas tenha cuidado. A mulher de bruços, com as pernas esticadas, e o homem por trás, como um cão preguiçoso deitado." },
-        { name: "Sereia (Variação)", description: "Representar-se como se você fosse uma criatura fabulosa e arejada, acrescentar um pouco de feminilidade, ternura, graça, habilidade, encantar seu parceiro. Um parceiro deita-se de lado, com as pernas unidas como uma cauda de sereia, e o outro o abraça por trás." },
-        { name: "Bud", description: "Entre dois parceiros experientes que cuidam dos sentimentos um do outro não podem simplesmente ser perdedores, eles estão definitivamente em uma posição lucrativa. Ambos de frente, com os corpos curvados e unidos, como um botão de flor." },
-        { name: "Bulldog", description: "Vá do fundo do poço, você não pode simplesmente cair nos braços da pessoa desejada, precisa fazê-lo para ser dedicado ao máximo e não receber menos em troca. Um parceiro ajoelhado, e o outro por trás, com os corpos curvados, como um bulldog." },
-        { name: "Missionário", description: "Os órgãos são vinculados, são sensíveis e inter-relacionados, e todo movimento se revoga no órgão do parceiro. A mulher deita-se de costas e o homem é. O homem sobre a mulher, de frente para ela, ambos deitados de costas, em uma posição tradicional." },
-        { name: "Rosa", description: "Aqui é uma posição confortável e prática, seu homem, sem dúvida, vai gostar, experimente com prazer. A mulher controla todo o processo. O parceiro masculino. A mulher deita-se de costas, com as pernas abertas, e o homem se posiciona sobre ela, com os corpos entrelaçados como pétalas de rosa." },
-        { name: "Estojo", description: "Esta posição é adequada para um jogo de role-playing no qual você pode imaginar que está em um espaço confinado e limitado em movimentos. Ambos de bruços, um em cima do outro, encaixados como em um estojo." },
-        { name: "Tango", description: "Como se você estiver dançando apaixonadamente, inspirados um pelo outro, relaxados e insaciáveis, e esta posição expressa perfeitamente seus sentimentos. Ambos de pé, abraçados, realizando movimentos sensuais de tango." },
-        { name: "Croissant", description: "Nesta posição, a mulher pode engolir o pênis do homem muito profundamente, e o homem tem a oportunidade de liderar o processo, excitando-o cada vez mais. A mulher de joelhos, curvada para trás, e o homem de pé à frente, penetrando-a." },
-        { name: "Mastro", description: "Se você não se importa de mudar de papel com sua parceira na cama, então não perca a chance de mostrar a ela como satisfazer seu corpo. Um parceiro deita-se de costas, e o outro senta-se sobre ele, de frente, com as pernas retas para cima, como um mastro." },
-        { name: "Orador", description: "Outra excelente posição para os amantes dos prazeres orais. Sua distinta vantagem é óbvia, pois ambos os parceiros são absolutamente iguais, ambos podem. Um parceiro de joelhos, com a cabeça baixa, e o outro de pé à frente, com as mãos na cabeça, como um orador." },
-        { name: "Vitória", description: "Confiante e apaixonado, vocês não precisam absolutamente de uma cama para se amar, se entrarem na casa e seu desejo acordar, tirar a roupa e fazer sexo. Ambos de pé, abraçados, com as mãos para cima, celebrando a vitória." },
-        { name: "Caranguejo", description: "Sinta todo o peso de seu desejo, faça um esforço e liberte suas emoções que estão escondidas dentro de você por muito tempo. A mulher deita-se com seu rosto. Ambos de bruços, com as costas curvadas, como um caranguejo." },
-        { name: "Borboleta (Variação)", description: "Se você é muito próximo de seu parceiro masculino e gosta de se observar de lado, então esta posição certamente se tornará uma das favoritas. A mulher deita-se de bruços, com as pernas abertas como asas de borboleta, e o homem por trás." },
-        { name: "Inclinação", description: "Quando o casal tem desejo sexual, é um grande motivo para cair na profundidade do prazer e drená-lo para as escórias. A mulher deita-se de costas e levanta. A mulher deita-se de costas, com as pernas levantadas e inclinadas para o lado, e o homem ajoelhado à frente." },
-        { name: "Tartaruga", description: "Para perdoar ou executar, para permitir estar no auge do prazer ou para atrasar este momento, desta vez, só o homem decide. A mulher senta-se em seus pés. A mulher senta-se de frente para o homem, com os braços e pernas abraçando-o, como uma tartaruga em seu casco." },
-        { name: "Espalhe a Águia", description: "Se seu corpo está faminto de amor e paixão, não retenha seus impulsos sexuais, tente surpreender seu parceiro com seu brinquedo, esvazie o copo de seu. Um parceiro deita-se de costas, com as pernas abertas e esticadas, como as asas de uma águia, e o outro se posiciona sobre ele." },
-        { name: "Tiara", description: "O lado íntimo da vida é simplesmente necessário para cada pessoa para a realização de suas fantasias secretas. Comporte-se na cama para que o rosto corasse. Um parceiro ajoelhado e o outro sentado em frente, com as pernas dela na cintura dele, formando uma tiara." },
-        { name: "Precipício", description: "É difícil conter os impulsos da emoção ao fazer amor e esta posição não requer nenhum controle. Basta confiar um no outro. Ambos de pé, abraçados, com um parceiro pendurado no outro, como se estivessem em um precipício." },
-        { name: "Creme Brûlée", description: "Sexo pela manhã é um começo perfeito de um dia que promete ser muito bom e caloroso, então pegue uma posição sem sair da cama, faça sexo pela manhã. Ambos deitados de lado, abraçados, com os corpos aquecidos como um creme brûlée." },
-        { name: "Marshmallow", description: "Se seu parceiro masculino estiver cansado no trabalho e você quiser recompensá-lo por um longo e duro dia, ou se você apenas decidir fazer algo agradável. Ambos deitados, um abraçando o outro, macios e aconchegantes como marshmallows." },
-        { name: "Toureiro", description: "Nesta posição, o homem tem uma grande oportunidade de encontrar o ponto G de sua parceira feminina e acariciá-la devido à posição plana do corpo feminino. A mulher deita-se de bruços, com as pernas levantadas, e o homem a penetra por trás, como um toureiro." },
-        { name: "Hucklebuck", description: "Nesta posição, todo o papel é dado ao homem, ele deve não apenas satisfazer sua mulher oralmente, mas também estimular seu pênis com uma mão. A mulher senta-se de costas para o homem, com as pernas abertas, e ele se posiciona para o sexo oral." },
-        { name: "Barbell", description: "Vida sexual monogâmica e enfadonha, muitas vezes causa infidelidade em muitos casais, portanto discutam as fantasias um do outro, implementem-nas. Um parceiro deita-se de costas, e o outro deita-se sobre ele, de bruços, como se estivessem levantando um halter." },
-        { name: "Montanha Mágica", description: "É uma versão preguiçosa do sexo quando a mulher tem uma dor de cabeça. Você pode simplesmente convidá-la para assistir a sua série de TV favorita e aproximar-se. A mulher deita-se de costas, com as pernas levantadas e abertas, formando uma montanha, e o homem a penetra por cima." },
-        { name: "Sagitário", description: "Ingenuidade faz maravilhas e ajuda a trazer muita uva passa para a vida íntima, o que não permitirá que falte aos dois parceiros. O homem está de pé, e. O homem de pé, com as pernas da mulher em volta da cintura, como um centauro." },
-        { name: "Afrodite", description: "Ao acariciar com ternura e cuidado o corpo um do outro, o casal mergulha no oceano da paixão, o que lhes garante um céu não digno. O homem senta-se confortavelmente. O homem sentado em uma cadeira, e a mulher senta-se de frente para ele, no colo, como a deusa Afrodite." },
-        { name: "Caixão", description: "Esta posição é como um caixão com uma surpresa, ela o ajudará a dar uma nova olhada em seu parceiro e desfrutar de um sentimento antes desconhecido. A mulher deita-se de costas, com as pernas levantadas e juntas, e o homem se posiciona sobre ela, com o corpo ereto, como um caixão." },
-        { name: "Submisso", description: "Para obter mais prazer de um contato sexual, é necessário alternar ternura e brutalidade no sexo, acariciar seu parceiro, mudar de tática. Um parceiro de bruços, com as mãos atadas, e o outro de pé, dominando a posição." },
-        { name: "Queda", description: "Para obter mais prazer de um contato sexual, é necessário alternar ternura e brutalidade no sexo, acariciar seu parceiro, mudar de tática. Um parceiro de pé, e o outro abraça-o por trás, com as pernas levantadas, como se estivesse caindo nos braços dele." },
-    ];
-
-
-    // Função para gerar uma imagem de posição do Kamasutra com a IA (Imagen)
-    const generateImage = async (positionName, description) => {
-        setDrawing(true);
-        setLlmTip(null); // Clear previous tip when generating new image
-        setLlmTipLoading(false); // Reset tip loading state
-        try {
-            const prompt = `Gere uma ilustração simples e clara de dois bonecos (um masculino e um feminino) ou formas humanas básicas em preto e branco, mostrando a posição sexual chamada "${positionName}", descrita como: "${description}". O estilo deve ser um esboço técnico, focando na clareza da pose. Sem rostos ou detalhes explícitos, apenas as formas dos corpos para ilustrar a posição.`;
-            const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1 } };
-            const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-
-            if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
-                const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                setCurrentPosition({ name: positionName, description: description, imageUrl: imageUrl });
-            } else {
-                console.error("Erro ao gerar imagem com LLM: Estrutura de resposta inesperada.", result);
-                setCurrentPosition({ name: positionName, description: description, imageUrl: "https://placehold.co/300x200/FFB6C1/FFFFFF?text=Erro+ao+Gerar+Imagem" });
+                );
             }
-        } catch (error) {
-            console.error("Erro na chamada do Gemini API (Imagem):", error);
-            setCurrentPosition({ name: positionName, description: description, imageUrl: "https://placehold.co/300x200/FFB6C1/FFFFFF?text=Falha+na+Conexão" });
-        } finally {
-            setDrawing(false);
-        }
-    };
 
-    // Função para gerar dicas da posição com LLM (Gemini)
-    const generatePositionTip = async () => {
-        setLlmTipLoading(true);
-        setLlmTip(null);
-        try {
-            const prompt = `Para a posição Kamasutra chamada "${currentPosition.name}", descrita como "${currentPosition.description}", forneça uma dica criativa e sensual sobre como maximizar o prazer ou a intimidade nesta posição para um casal. Seja conciso.`;
-            let chatHistory = [];
-            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
-            const payload = { contents: chatHistory };
-            const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            return (
+                <div className="flex flex-col items-center justify-between h-full p-4 text-center">
+                    <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
+                        Vez de: <span className="text-rose-300">{currentPlayerName}</span>
+                    </h2>
+                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
+                        <h3 className="text-2xl font-bold text-rose-100 mb-4">{currentStation.name}</h3>
+                        <p className="text-xl text-white italic leading-relaxed mb-6">
+                            {currentStation.task}
+                        </p>
 
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-
-            if (result.candidates && result.candidates.length > 0 &&
-                result.candidates[0].content && result.candidates[0].content.parts &&
-                result.candidates[0].content.parts.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                setLlmTip(text);
-            } else {
-                console.error("Erro ao gerar dica com LLM: Estrutura de resposta inesperada.", result);
-                setLlmTip('Não foi possível gerar uma dica agora. Tente novamente!');
-            }
-        } catch (error) {
-            console.error("Erro na chamada do Gemini API (dica):", error);
-            setLlmTip('Falha na conexão. Tente novamente!');
-        } finally {
-            setLlmTipLoading(false);
-        }
-    };
-
-    const drawPosition = () => {
-        setDrawing(true);
-        setCurrentPosition(null); // Limpar posição anterior
-        setLlmTip(null); // Limpar dica anterior
-        setLlmTipLoading(false); // Resetar loading da dica
-        setTimeout(() => {
-            const randomIndex = Math.floor(Math.random() * kamasutraPositions.length);
-            const selectedPosition = kamasutraPositions[randomIndex];
-            generateImage(selectedPosition.name, selectedPosition.description);
-        }, 500); // Pequeno atraso para atualização da UI
-    };
-
-    const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
-
-    return (
-        <div className="flex flex-col items-center justify-between h-full p-4 text-center">
-            <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
-                Vez de: <span className="text-rose-300">{currentPlayerName}</span>
-            </h2>
-            <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
-                <h3 className="text-2xl font-bold text-rose-100 mb-4">Posições do Kamasutra</h3>
-                {drawing ? (
-                    <div className="text-xl text-rose-200 mb-6">
-                        ✨ Gerando imagem da posição...
-                        <div className="animate-pulse mt-4">
-                            <div className="bg-rose-300 opacity-50 h-48 w-48 mx-auto rounded-lg"></div>
-                        </div>
-                    </div>
-                ) : (
-                    !currentPosition ? (
-                        <p className="text-lg text-rose-200 mb-6">Sorteie uma posição para começar a explorar!</p>
-                    ) : (
-                        <div className="text-xl text-white space-y-4 mb-6">
-                            <h4 className="text-3xl font-bold text-rose-100">{currentPosition.name}</h4>
-                            <img
-                                src={currentPosition.imageUrl}
-                                alt={`Ilustração da posição: ${currentPosition.name}`}
-                                className="rounded-lg shadow-md mx-auto w-full max-w-xs sm:max-w-sm md:max-w-md h-auto"
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = "https://placehold.co/300x200/FFB6C1/FFFFFF?text=Imagem+Indisponível";
-                                }}
-                            />
-                            <p className="italic leading-relaxed text-rose-50">{currentPosition.description}</p>
-
-                            {/* LLM-powered tip button and display */}
-                            {!llmTip && !llmTipLoading && (
+                        <div className="flex flex-col sm:flex-row justify-center gap-4 mb-4">
+                            {!llmGeneratedDetail && !llmLoading && (
                                 <button
-                                    onClick={generatePositionTip}
+                                    onClick={generateStationDetail}
                                     className="mt-4 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-300"
                                 >
-                                    ✨ Dicas da Posição com IA
+                                    ✨ Detalhar Tarefa
                                 </button>
                             )}
-                            {llmTipLoading && (
-                                <div className="mt-4 text-lg text-rose-200">
-                                    ✨ A gerar dica...
-                                </div>
+
+                            {!llmEnvironmentSuggestion && !llmEnvironmentLoading && (
+                                <button
+                                    onClick={generateEnvironmentSuggestion}
+                                    className="mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-yellow-300"
+                                >
+                                    ✨ Sugestão de Ambiente
+                                </button>
                             )}
-                            {llmTip && (
-                                <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
-                                    <span className="font-semibold">Dica da ✨IA:</span> {llmTip}
+                        </div>
+
+                        {llmLoading && (
+                            <div className="mt-4 text-lg text-rose-200">
+                                ✨ A detalhar a tarefa...
+                            </div>
+                        )}
+
+                        {llmGeneratedDetail && (
+                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
+                                <span className="font-semibold">Sugestão do ✨Mestre:</span> {llmGeneratedDetail}
+                            </div>
+                        )}
+
+                        {llmEnvironmentLoading && (
+                            <div className="mt-4 text-lg text-rose-200">
+                                ✨ A gerar sugestão de ambiente...
+                            </div>
+                        )}
+
+                        {llmEnvironmentSuggestion && (
+                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
+                                <span className="font-semibold">Ambiente Sugerido:</span> {llmEnvironmentSuggestion}
+                            </div>
+                        )}
+
+                        <button
+                            onClick={nextStation}
+                            className="mt-6 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
+                        >
+                            {isLastStation ? 'Concluir Rota!' : 'Próxima Estação'}
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        // Componente Jogo Kamasutra
+        const KamasutraGame = ({ player1Name, player2Name, currentPlayerIndex, onChallengeComplete }) => {
+            const [currentPosition, setCurrentPosition] = React.useState(null);
+            const [drawing, setDrawing] = React.useState(false);
+            const [llmTip, setLlmTip] = React.useState(null); // Novo estado para dicas da IA
+            const [llmTipLoading, setLlmTipLoading] = React.useState(false); // Novo estado de loading para dicas
+
+            // Hardcoded positions based on the provided PDF, adjusted for conciseness and clarity
+            // These will be used to create prompts for image generation
+            const kamasutraPositions = [
+                { name: "Freira", description: "No sexo, é importante sentir-se relaxado e comportar-se livremente, ir além dos limites. A mulher deita-se de costas, com as pernas esticadas e juntas, e o homem se posiciona sobre ela, com o corpo ereto, apoiando-se nos braços para não tocar o corpo da mulher, apenas a penetrando." },
+                { name: "Tigre", description: "Mesmo que seu parceiro costumasse tomar tudo em suas mãos, você não deve ficar de braços cruzados. Acrescente um pouco de paixão, solte as garras e mostre. A mulher se ajoelha de quatro, o homem por trás, com ela arqueando as costas para ele." },
+                { name: "Conchinha", description: "Os corpos estão emaranhados e quentes, e você quer gritar de alegria. Posição conchinha surpreendentemente combina. Ambos deitam-se de lado, um de frente para as costas do outro, abraçados." },
+                { name: "Soldado", description: "Se seu homem está cansado e quer relaxar, você é a melhor pessoa para ajudá-lo com isso e tornar o processo de relaxamento muito eficiente e eficaz. O homem deita-se de costas, pernas abertas, e a mulher senta-se sobre ele, de frente para os pés dele." },
+                { name: "Cleópatra", description: "A mulher dirige e ordena, como se ela permitisse que seu parceiro masculino tocasse seu corpo, observando tudo de lado. A parceira senta-se em suas pernas. A mulher senta-se de frente para o homem, com as pernas dele em volta da cintura dela." },
+                { name: "Idílio", description: "O sexo oral é outra versão de intimidade. Se você estiver completamente confiante em seu parceiro, fechar não só fisicamente, mas também emocionalmente. Um parceiro deita-se de costas, e o outro ajoelha-se entre as pernas, realizando sexo oral." },
+                { name: "Chama", description: "Paixão nos corpos ardem mais e mais, e você não pode mais suportar seu desejo; rendam-se uns aos outros. A mulher fica de pé, inclinando-se para trás em um objeto firme, e o homem a penetra por trás, de pé." },
+                { name: "Câncer", description: "Se você gosta de beijar durante o sexo, experimente esta posição, não pare para seduzir um ao outro no processo de relações sexuais e sua experiência será inacreditável. A mulher deita-se de costas, com as pernas elevadas sobre os ombros do homem, que está ajoelhado." },
+                { name: "Gancho", description: "Se coloque do melhor lado para seu parceiro, ofereça-lhe para fazer sexo em frente a um espelho. Nesta posição é tão fácil enfatizar todas as suas vantagens. Ambos de pé, um de frente para o outro, com as pernas entrelaçadas em volta da cintura." },
+                { name: "Êxtase", description: "Esta é a razão pela qual você fica louco por causa da eternidade, das penetrações, dos toques e até mesmo de um olhar. O homem deita-se de costas na horizontal. A mulher senta-se sobre o homem, de costas para ele, com as pernas para fora, enquanto ele a segura pela cintura." },
+                { name: "Clip", description: "Cada pessoa deve ter seu livro invisível de relações íntimas e é muito importante vincular as posições favoritas, que você vai querer usar depois. A mulher deita-se de lado, pernas unidas e dobradas, e o homem se posiciona por trás, abraçando-a firmemente." },
+                { name: "Escavações", description: "Cada posição dá aos parceiros uma nova experiência. Se você gosta de sexo por trás, tente esta não uma versão comum. A mulher se ajoelha de quatro, e o homem a penetra por trás, com ele também ajoelhado." },
+                { name: "Harmonia", description: "Nesta posição você não precisa pensar em nada, desconectar seus pensamentos, levar um ao outro e desfrutar de seu parceiro, procurar harmonia nas proximidades. Ambos deitam-se de frente, pernas entrelaçadas, em total contato visual." },
+                { name: "Ape", description: "É impossível controlar a situação, quando o papel do cavaleiro desempenha um sedutor parceiro feminino, todo o poder está nas mãos das mulheres e o ritmo. A mulher está deitada de bruços, com as pernas elevadas, e o homem se posiciona por cima, de joelhos." },
+                { name: "Cavaleiro", description: "A mulher pega o volante em suas mãos, ela lidera completamente o processo, ela vê o objetivo e não vê nenhum obstáculo. O homem deita-se de costas, coloca. A mulher senta-se de frente para o homem, de joelhos, sobre ele." },
+                { name: "Encadernação", description: "Os corpos estão em estreito contato um com o outro, e ainda mais nus prometem aos dois parceiros um mar de ternura e prazer. Ambos deitam-se de lado, um de frente para o outro, com as pernas entrelaçadas, como se estivessem 'encadernados'." },
+                { name: "Escravo do Sexo", description: "Se você deseja provar sua fidelidade e devoção a seu único parceiro e está confiante com ele como consigo mesmo, encarne seus desejos orais mais secretos. Um parceiro sentado, outro de joelhos à frente, realizando sexo oral, com as mãos atadas." },
+                { name: "Gorge", description: "Se você tiver pernas muito elegantes e esbeltas, será um crime enorme escondê-las de seu parceiro. A mulher deita-se confortavelmente de costas, sua cabeça. A mulher deita-se de costas, com as pernas esticadas para cima e o homem de pé, realizando sexo oral." },
+                { name: "Livro", description: "É necessário aprender seu parceiro gradual e completamente, cada parte de seu corpo, cada reação e excitação, só então você será capaz de satisfazê-lo completamente. Ambos deitam-se de lado, um de frente para o outro, como um livro aberto." },
+                { name: "Estilo Indiano", description: "Movimentos durante uma relação sexual nesta posição são muito semelhantes à dança. Não é motivo para fazer sexo em público, mas apenas mais uma versão. Ambos sentados, um de frente para o outro, com as pernas entrelaçadas, como em uma dança indiana." },
+                { name: "Gota de Neve", description: "A parte íntima em qualquer relacionamento é um componente importante deles e se você quiser refrescar seu sexo, experimente não apenas as posições, mas. A mulher deita-se de costas, com as pernas dobradas e elevadas, e o homem a penetra por cima, de pé." },
+                { name: "Parede", description: "Se você adora sexo em lugares picantes ou incomuns, então ponha esta posição em evidência e simplesmente encontre algo em que se apoiar. A mulher de frente para uma parede, apoiando as mãos, e o homem por trás." },
+                { name: "Broto", description: "Desejo aumenta a cada momento, o estado emocional aumenta alto, mais alguns segundos e você fica nirvana, o que pode ser melhor? O homem deita-se confortavelmente de costas. A mulher se agacha sobre ele, de frente, com as pernas abertas, como um broto florescendo." },
+                { name: "Cachoeira", description: "Um coquetel de toques suaves, beijos apaixonados, olhos ardentes e desejos insatisfeitos, você precisa beber junto, nesta posição, e até a última gota. A mulher deita-se de costas, com as pernas elevadas e caindo sobre a borda de uma superfície, e o homem de pé à frente." },
+                { name: "Basset Hound", description: "Desde o primeiro toque até o último empurrão seu corpo deve queimar de desejo. Esta posição é apenas um caminho para o prazer. A mulher de bruços, com as pernas levantadas e cruzadas, e o homem por trás, apoiando-se nos cotovelos, como um Basset Hound." },
+                { name: "Tornado", description: "Puxe seu parceiro em um turbilhão de emoções brilhantes, leve-o ao êxtase com uma culminação imprevisível, drene todo o seu corpo e, em troca, você receberá muito mais. Ambos de pé, um abraçando o outro e girando, como em um tornado." },
+                { name: "Balançar", description: "Subir e descer, como se seu corpo flutuasse sem peso, uma sensação do toque quente das mãos e um prazer de calor ardente que penetra nos corpos dos parceiros. Um parceiro sentado em uma cadeira, o outro no colo, balançando os quadris." },
+                { name: "Tulipa", description: "Aqui é uma posição muito sensata. A mulher dirige, mas o homem controla. Nesta posição, o parceiro masculino se deita e se agacha para que a parceira se. O homem deita-se de costas, e a mulher senta-se sobre ele de frente, com as pernas dobradas para fora, como pétalas de tulipa." },
+                { name: "Colher", description: "Esta posição é particularmente relevante pela manhã, quando sua ereção se faz sentir, e a parceira está dormindo por perto. É perfeita para despertar o. Ambos deitam-se de lado, um atrás do outro, como duas colheres." },
+                { name: "Sussurro", description: "Muito gentilmente e muito docemente acaricia seu pênis com sua boca, o parceiro masculino será louco por seus esforços, especialmente nesta posição. Um parceiro ajoelhado e o outro sentado em frente, cochichando no ouvido, com as pernas entrelaçadas." },
+                { name: "Inquisidor", description: "Esta posição merecidamente recebeu exatamente este nome fatídico, porque a mulher está no poder de um homem de todo o coração e é ele quem decide quando. A mulher senta-se em uma cadeira, e o homem se ajoelha à frente, com as mãos atadas, aguardando." },
+                { name: "Círculo", description: "Aqui está uma posição picante que simplifica muito o sexo oral, além de torná-lo muito mais sofisticado e variado. O homem e a mulher ficam deitados de. Ambos sentados, um de frente para o outro, formando um círculo com os corpos." },
+                { name: "Disco", description: "Uma pessoa não pode sequer imaginar uma dança melhor que a dança do amor, aprender mais movimentos, posições, aprender a reconhecer os desejos de seu parceiro. Ambos de pé, abraçados, girando em um disco de dança." },
+                { name: "Barco", description: "Tocando a cada centímetro dos corpos, você se sente mais profundo e sente mais, você trabalha como um único organismo, que é movido pelo desejo. Ambos de bruços, um sobre o outro, como um barco flutuando." },
+                { name: "Vela", description: "Desejando ser um com o parceiro, não é obrigatório estar procurando qualquer lugar apropriado, será suficiente ter desejo e um pouco de imaginação. Um parceiro deita-se de costas, e o outro senta-se sobre ele, com as pernas retas para cima, como uma vela." },
+                { name: "Straddle", description: "A mulher por cima é perfeita para homens que querem relaxar e se divertir, por isso você deve obviamente notar esta posição. O homem deita-se de costas. A mulher senta-se sobre ele, de frente, com as pernas abertas, cavalgando-o." },
+                { name: "Aquário", description: "Corpos e pensamentos nus são unidos, você está na mesma posição, mas cada parceiro desempenha seu próprio papel pessoal. A mulher deita-se abrindo suas. A mulher deita-se de costas, com as pernas abertas, e o homem se posiciona sobre ela, com os corpos submersos em uma banheira." },
+                { name: "Claquete", description: "Precisamos ter sexo não tanto para satisfazer nossos desejos, mas para ter prazer, para chegar ao êxtase, então sua vida sexual não será rotineira e entediante. Um parceiro deita-se, e o outro se posiciona sobre ele, batendo as mãos como uma claquete de cinema." },
+                { name: "Gato", description: "Mesmo a posição mais simples pode trazer uma experiência inesquecível para os parceiros, ou vice-versa, para ser outro tick na lista das variantes estudadas. Ambos de quatro, com as costas arqueadas, como gatos." },
+                { name: "Sereia", description: "É difícil encontrar alguém que possa satisfazê-lo na vida e na cama. Se você conseguiu encontrar, apreciar o que você tem, entregar-se completamente a. Um parceiro deita-se de lado, com as pernas unidas como uma cauda de sereia, e o outro o abraça por trás." },
+                { name: "Ônibus", description: "É difícil encontrar alguém que possa satisfazê-lo na vida e na cama. Se você conseguiu encontrar, apreciar o que você tem, entregar-se completamente a. Ambos sentados, um atrás do outro, como em um ônibus, com o de trás abraçando o da frente." },
+                // Posições do PDF Kamasutra (seleção para ilustração de IA)
+                { name: "Iris", description: "Esta é a posição, na qual é possível combinar o sexo sensual e irritável, acelerando, dizendo vulgaridades, acariciando-se mutuamente e beijando-se apaixonadamente. A mulher deita-se de bruços, e o homem a penetra por trás, apoiando-se nos cotovelos." },
+                { name: "Bancada", description: "Sexo confortável em condições confortáveis, você pode continuar assistindo seu programa favorito de TV, embora mal se lembre do que viu. Um parceiro deita-se de costas sobre uma bancada, com as pernas para cima, e o outro se posiciona de frente, de pé." },
+                { name: "Déjà Vu", description: "Todo o tempo ama seu parceiro como se pela primeira vez, se desse completamente, se mostrasse não escondendo suas emoções, como se esta fosse a última. Ambos de frente, ajoelhados, com os corpos entrelaçados em um abraço íntimo, revivendo um momento." },
+                { name: "Cinto", description: "Quando você sabe do que seu parceiro gosta, você o sente do chão das palavras, você pode mostrar cada marca de nascimento em seu corpo com os olhos fechados. Um parceiro está sentado, e o outro está de joelhos à frente, com um cinto sendo usado para um toque sensual." },
+                { name: "Descarga", description: "Por vezes o homem sente-se fraco e, portanto, pode recusar o sexo ou ter uma ereção fraca. Para ajudar seu parceiro masculino a ter relações sexuais, use esta posição. O homem deita-se de costas, e a mulher senta-se sobre ele, de frente, com as pernas abertas, como se estivesse drenando a energia dele." },
+                { name: "Fruta Proibida", description: "Aqui está uma posição surpreendente para o cunnilingus que irá encantar sua parceira feminina e fará com que ela se arrepie de prazer. A mulher levanta. A mulher deita-se de costas, com as pernas levantadas e abertas, e o homem se posiciona para o cunnilingus." },
+                { name: "Escorpião", description: "Aqui é uma posição picante que simplifica muito o sexo oral, além de torná-lo muito mais sofisticado e variado. O homem e a mulher ficam deitados de lado. Um parceiro deita-se de bruços, e o outro ajoelha-se por trás, levantando as pernas do primeiro e apoiando-as nos ombros, com o corpo curvado sobre o parceiro, como um escorpião." },
+                { name: "Olimpo", description: "Para subir ao céu e descer na velocidade infinita – não importa se você está nos braços dele. O homem pega a mulher como se a espetasse em seu pênis. O homem de pé, segurando a mulher no colo, com as pernas dela em volta da cintura, elevando-a como se estivesse nas alturas do Olimpo." },
+                { name: "Profundidade", description: "Tamanho do pênis não é tanto importante, mas um conhecimento, como usá-lo, mas se você quiser penetrar profundamente possível em sua parceira, esta posição seria útil. Ambos de bruços, um atrás do outro, com o parceiro da frente arqueando as costas para a penetração profunda." },
+                { name: "Vênus", description: "Mesmo se você pensa que é de planetas diferentes, fazendo amor, você se tornará mais próximo. A mulher fica de pé, inclina-se ligeiramente para frente. A mulher de pé, com as pernas ligeiramente afastadas, e o homem a penetra por trás, de pé, abraçando-a." },
+                { name: "Fechadura", description: "Durante o sexo os corpos podem estar ligados com abraços, brinquedos temáticos diferentes ou uma posição incomum, mas é importante que os parceiros se. Ambos abraçados, com os corpos entrelaçados como uma fechadura." },
+                { name: "Avalanche", description: "A sensação de desejo aumenta cada vez mais, parece que em breve vai estourar, tremores nos braços e joelhos não é um obstáculo, porque você é como uma. Ambos de bruços, um em cima do outro, rolando juntos em uma 'avalancha' de paixão." },
+                { name: "Rodeio", description: "Quando não há apenas um raio entre os parceiros, mas um disparo quando eles se devoram uns aos outros com os olhos e não podem saturar-se uns aos outros. A mulher senta-se de frente para o homem, no colo dele, simulando um 'rodeio'." },
+                { name: "Berço", description: "É improvável que você adormeça nesta posição, para obter um orgasmo é possível, mas para adormecer – nunca, você não terá tempo para dormir, nem mesmo tente. Um parceiro deita-se de costas, e o outro deita-se sobre ele, abraçando-o como um berço." },
+                { name: "Borboleta", description: "Delicado e bonito, ela se abre para seu homem, oferecendo-se sem deixar rastro! Como você pode resistir a tal tentação?! O homem deita-se de costas e abre suas pernas. A mulher senta-se sobre ele, de frente, com as pernas abertas como asas de borboleta." },
+                { name: "Sinfonia", description: "É uma posição muito delicada na qual exatamente o homem assume o controle. A mulher convenientemente deita-se de lado, dobra ligeiramente os joelhos e. Ambos de lado, em um abraço íntimo, com movimentos suaves e harmoniosos como uma sinfonia." },
+                { name: "Concha", description: "Muitos homens amam sexo oral e tentam persuadir uma mulher a esse tipo de intimidade. Se você pratica este tipo de sexo, não deve ser banal, esta posição. Um parceiro deita-se de costas, e o outro se posiciona para o sexo oral, com os corpos curvados como uma concha." },
+                { name: "Yin-Yang", description: "Prelude pode ser bastante diversificado, e esta opção é ideal para o aquecimento, ou mesmo a plena satisfação de sua parceira, ela certamente ficará satisfeita. Ambos deitam-se de lado, um de frente para o outro, formando um círculo com os corpos, como o símbolo Yin-Yang." },
+                { name: "Exercício", description: "Aqui está uma opção muito interessante e conveniente de 69 posições. Se você pratica sexo oral com seu parceiro, não deixe de anotar isso. Ambos de bruços, com a cabeça de um na área genital do outro, como um exercício de flexibilidade." },
+                { name: "Cão Preguiçoso", description: "Esta posição é relevante para homens com boa preparação física e mulheres com pernas longas. É claro que não há restrições, mas tenha cuidado. A mulher de bruços, com as pernas esticadas, e o homem por trás, como um cão preguiçoso deitado." },
+                { name: "Sereia (Variação)", description: "Representar-se como se você fosse uma criatura fabulosa e arejada, acrescentar um pouco de feminilidade, ternura, graça, habilidade, encantar seu parceiro. Um parceiro deita-se de lado, com as pernas unidas como uma cauda de sereia, e o outro o abraça por trás." },
+                { name: "Bud", description: "Entre dois parceiros experientes que cuidam dos sentimentos um do outro não podem simplesmente ser perdedores, eles estão definitivamente em uma posição lucrativa. Ambos de frente, com os corpos curvados e unidos, como um botão de flor." },
+                { name: "Bulldog", description: "Vá do fundo do poço, você não pode simplesmente cair nos braços da pessoa desejada, precisa fazê-lo para ser dedicado ao máximo e não receber menos em troca. Um parceiro ajoelhado, e o outro por trás, com os corpos curvados, como um bulldog." },
+                { name: "Missionário", description: "Os órgãos são vinculados, são sensíveis e inter-relacionados, e todo movimento se revoga no órgão do parceiro. A mulher deita-se de costas e o homem é. O homem sobre a mulher, de frente para ela, ambos deitados de costas, em uma posição tradicional." },
+                { name: "Rosa", description: "Aqui é uma posição confortável e prática, seu homem, sem dúvida, vai gostar, experimente com prazer. A mulher controla todo o processo. O parceiro masculino. A mulher deita-se de costas, com as pernas abertas, e o homem se posiciona sobre ela, com os corpos entrelaçados como pétalas de rosa." },
+                { name: "Estojo", description: "Esta posição é adequada para um jogo de role-playing no qual você pode imaginar que está em um espaço confinado e limitado em movimentos. Ambos de bruços, um em cima do outro, encaixados como em um estojo." },
+                { name: "Tango", description: "Como se você estiver dançando apaixonadamente, inspirados um pelo outro, relaxados e insaciáveis, e esta posição expressa perfeitamente seus sentimentos. Ambos de pé, abraçados, realizando movimentos sensuais de tango." },
+                { name: "Croissant", description: "Nesta posição, a mulher pode engolir o pênis do homem muito profundamente, e o homem tem a oportunidade de liderar o processo, excitando-o cada vez mais. A mulher de joelhos, curvada para trás, e o homem de pé à frente, penetrando-a." },
+                { name: "Mastro", description: "Se você não se importa de mudar de papel com sua parceira na cama, então não perca a chance de mostrar a ela como satisfazer seu corpo. Um parceiro deita-se de costas, e o outro senta-se sobre ele, de frente, com as pernas retas para cima, como um mastro." },
+                { name: "Orador", description: "Outra excelente posição para os amantes dos prazeres orais. Sua distinta vantagem é óbvia, pois ambos os parceiros são absolutamente iguais, ambos podem. Um parceiro de joelhos, com a cabeça baixa, e o outro de pé à frente, com as mãos na cabeça, como um orador." },
+                { name: "Vitória", description: "Confiante e apaixonado, vocês não precisam absolutamente de uma cama para se amar, se entrarem na casa e seu desejo acordar, tirar a roupa e fazer sexo. Ambos de pé, abraçados, com as mãos para cima, celebrando a vitória." },
+                { name: "Caranguejo", description: "Sinta todo o peso de seu desejo, faça um esforço e liberte suas emoções que estão escondidas dentro de você por muito tempo. A mulher deita-se com seu rosto. Ambos de bruços, com as costas curvadas, como um caranguejo." },
+                { name: "Borboleta (Variação)", description: "Se você é muito próximo de seu parceiro masculino e gosta de se observar de lado, então esta posição certamente se tornará uma das favoritas. A mulher deita-se de bruços, com as pernas abertas como asas de borboleta, e o homem por trás." },
+                { name: "Inclinação", description: "Quando o casal tem desejo sexual, é um grande motivo para cair na profundidade do prazer e drená-lo para as escórias. A mulher deita-se de costas e levanta. A mulher deita-se de costas, com as pernas levantadas e inclinadas para o lado, e o homem ajoelhado à frente." },
+                { name: "Tartaruga", description: "Para perdoar ou executar, para permitir estar no auge do prazer ou para atrasar este momento, desta vez, só o homem decide. A mulher senta-se em seus pés. A mulher senta-se de frente para o homem, com os braços e pernas abraçando-o, como uma tartaruga em seu casco." },
+                { name: "Espalhe a Águia", description: "Se seu corpo está faminto de amor e paixão, não retenha seus impulsos sexuais, tente surpreender seu parceiro com seu brinquedo, esvazie o copo de seu. Um parceiro deita-se de costas, com as pernas abertas e esticadas, como as asas de uma águia, e o outro se posiciona sobre ele." },
+                { name: "Tiara", description: "O lado íntimo da vida é simplesmente necessário para cada pessoa para a realização de suas fantasias secretas. Comporte-se na cama para que o rosto corasse. Um parceiro ajoelhado e o outro sentado em frente, com as pernas dela na cintura dele, formando uma tiara." },
+                { name: "Precipício", description: "É difícil conter os impulsos da emoção ao fazer amor e esta posição não requer nenhum controle. Basta confiar um no outro. Ambos de pé, abraçados, com um parceiro pendurado no outro, como se estivessem em um precipício." },
+                { name: "Creme Brûlée", description: "Sexo pela manhã é um começo perfeito de um dia que promete ser muito bom e caloroso, então pegue uma posição sem sair da cama, faça sexo pela manhã. Ambos deitados de lado, abraçados, com os corpos aquecidos como um creme brûlée." },
+                { name: "Marshmallow", description: "Se seu parceiro masculino estiver cansado no trabalho e você quiser recompensá-lo por um longo e duro dia, ou se você apenas decidir fazer algo agradável. Ambos deitados, um abraçando o outro, macios e aconchegantes como marshmallows." },
+                { name: "Toureiro", description: "Nesta posição, o homem tem uma grande oportunidade de encontrar o ponto G de sua parceira feminina e acariciá-la devido à posição plana do corpo feminino. A mulher deita-se de bruços, com as pernas levantadas, e o homem a penetra por trás, como um toureiro." },
+                { name: "Hucklebuck", description: "Nesta posição, todo o papel é dado ao homem, ele deve não apenas satisfazer sua mulher oralmente, mas também estimular seu pênis com uma mão. A mulher senta-se de costas para o homem, com as pernas abertas, e ele se posiciona para o sexo oral." },
+                { name: "Barbell", description: "Vida sexual monogâmica e enfadonha, muitas vezes causa infidelidade em muitos casais, portanto discutam as fantasias um do outro, implementem-nas. Um parceiro deita-se de costas, e o outro deita-se sobre ele, de bruços, como se estivessem levantando um halter." },
+                { name: "Montanha Mágica", description: "É uma versão preguiçosa do sexo quando a mulher tem uma dor de cabeça. Você pode simplesmente convidá-la para assistir a sua série de TV favorita e aproximar-se. A mulher deita-se de costas, com as pernas levantadas e abertas, formando uma montanha, e o homem a penetra por cima." },
+                { name: "Sagitário", description: "Ingenuidade faz maravilhas e ajuda a trazer muita uva passa para a vida íntima, o que não permitirá que falte aos dois parceiros. O homem está de pé, e. O homem de pé, com as pernas da mulher em volta da cintura, como um centauro." },
+                { name: "Afrodite", description: "Ao acariciar com ternura e cuidado o corpo um do outro, o casal mergulha no oceano da paixão, o que lhes garante um céu não digno. O homem senta-se confortavelmente. O homem sentado em uma cadeira, e a mulher senta-se de frente para ele, no colo, como a deusa Afrodite." },
+                { name: "Caixão", description: "Esta posição é como um caixão com uma surpresa, ela o ajudará a dar uma nova olhada em seu parceiro e desfrutar de um sentimento antes desconhecido. A mulher deita-se de costas, com as pernas levantadas e juntas, e o homem se posiciona sobre ela, com o corpo ereto, como um caixão." },
+                { name: "Submisso", description: "Para obter mais prazer de um contato sexual, é necessário alternar ternura e brutalidade no sexo, acariciar seu parceiro, mudar de tática. Um parceiro de bruços, com as mãos atadas, e o outro de pé, dominando a posição." },
+                { name: "Queda", description: "Para obter mais prazer de um contato sexual, é necessário alternar ternura e brutalidade no sexo, acariciar seu parceiro, mudar de tática. Um parceiro de pé, e o outro abraça-o por trás, com as pernas levantadas, como se estivesse caindo nos braços dele." },
+            ];
+
+
+            // Função para gerar uma imagem de posição do Kamasutra com a IA (Imagen)
+            const generateImage = async (positionName, description) => {
+                setDrawing(true);
+                setLlmTip(null); // Clear previous tip when generating new image
+                setLlmTipLoading(false); // Reset tip loading state
+                try {
+                    const prompt = `Gere uma ilustração simples e clara de dois bonecos (um masculino e um feminino) ou formas humanas básicas em preto e branco, mostrando a posição sexual chamada "${positionName}", descrita como: "${description}". O estilo deve ser um esboço técnico, focando na clareza da pose. Sem rostos ou detalhes explícitos, apenas as formas dos corpos para ilustrar a posição.`;
+                    const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1 } };
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+
+                    if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                        const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                        setCurrentPosition({ name: positionName, description: description, imageUrl: imageUrl });
+                    } else {
+                        console.error("Erro ao gerar imagem com LLM: Estrutura de resposta inesperada.", result);
+                        setCurrentPosition({ name: positionName, description: description, imageUrl: "https://placehold.co/300x200/FFB6C1/FFFFFF?text=Erro+ao+Gerar+Imagem" });
+                    }
+                } catch (error) {
+                    console.error("Erro na chamada do Gemini API (Imagem):", error);
+                    setCurrentPosition({ name: positionName, description: description, imageUrl: "https://placehold.co/300x200/FFB6C1/FFFFFF?text=Falha+na+Conexão" });
+                } finally {
+                    setDrawing(false);
+                }
+            };
+
+            // Função para gerar dicas da posição com LLM (Gemini)
+            const generatePositionTip = async () => {
+                setLlmTipLoading(true);
+                setLlmTip(null);
+                try {
+                    const prompt = `Para a posição Kamasutra chamada "${currentPosition.name}", descrita como "${currentPosition.description}", forneça uma dica criativa e sensual sobre como maximizar o prazer ou a intimidade nesta posição para um casal. Seja conciso.`;
+                    let chatHistory = [];
+                    chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+                    const payload = { contents: chatHistory };
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setLlmTip(text);
+                    } else {
+                        console.error("Erro ao gerar dica com LLM: Estrutura de resposta inesperada.", result);
+                        setLlmTip('Não foi possível gerar uma dica agora. Tente novamente!');
+                    }
+                } catch (error) {
+                    console.error("Erro na chamada do Gemini API (dica):", error);
+                    setLlmTip('Falha na conexão. Tente novamente!');
+                } finally {
+                    setLlmTipLoading(false);
+                }
+            };
+
+            const drawPosition = () => {
+                setDrawing(true);
+                setCurrentPosition(null); // Limpar posição anterior
+                setLlmTip(null); // Limpar dica anterior
+                setLlmTipLoading(false); // Resetar loading da dica
+                setTimeout(() => {
+                    const randomIndex = Math.floor(Math.random() * kamasutraPositions.length);
+                    const selectedPosition = kamasutraPositions[randomIndex];
+                    generateImage(selectedPosition.name, selectedPosition.description);
+                }, 500); // Pequeno atraso para atualização da UI
+            };
+
+            const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
+
+            return (
+                <div className="flex flex-col items-center justify-between h-full p-4 text-center">
+                    <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
+                        Vez de: <span className="text-rose-300">{currentPlayerName}</span>
+                    </h2>
+                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
+                        <h3 className="text-2xl font-bold text-rose-100 mb-4">Posições do Kamasutra</h3>
+                        {drawing ? (
+                            <div className="text-xl text-rose-200 mb-6">
+                                ✨ Gerando imagem da posição...
+                                <div className="animate-pulse mt-4">
+                                    <div className="bg-rose-300 opacity-50 h-48 w-48 mx-auto rounded-lg"></div>
                                 </div>
-                            )}
-                        </div>
-                    )
-                )}
-                <button
-                    onClick={drawPosition}
-                    disabled={drawing}
-                    className={`bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${drawing ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-pink-300`}
-                >
-                    {drawing ? 'A Sortear...' : 'Sortear Nova Posição'}
-                </button>
-                {currentPosition && !drawing && (
-                    <button
-                        onClick={() => {
-                            setCurrentPosition(null);
-                            setLlmTip(null); // Clear tip on completion
-                            onChallengeComplete();
-                        }}
-                        className="mt-4 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
-                    >
-                        Desafio Concluído! Próxima Ronda
-                    </button>
-                )}
-            </div>
-        </div>
-    );
-};
-
-
-// Componente Principal do Aplicativo
-const App = () => {
-    const [screen, setScreen] = useState('home'); // 'home', 'setup', 'gameSelection', 'wheelGame', 'diceGame', 'cardGame', 'pathGame', 'kamasutraGame'
-    const [player1Name, setPlayer1Name] = useState('');
-    const [player2Name, setPlayer2Name] = useState('');
-    const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0); // 0 para Jogador 1, 1 para Jogador 2
-    const [currentGame, setCurrentGame] = useState(null); // Armazena o jogo selecionado ('wheel', 'dice', 'cards', 'path', 'kamasutra')
-
-    // Função para iniciar o jogo após a configuração dos nomes
-    const startGame = () => {
-        if (player1Name.trim() === '' || player2Name.trim() === '') {
-            // Mensagem de erro para o utilizador, sem usar alert()
-            // Poderíamos adicionar um estado para exibir um modal ou um texto temporário na UI
-            console.error('Por favor, introduza o nome de ambos os jogadores!');
-            return;
-        }
-        setScreen('gameSelection');
-    };
-
-    // Função para alternar a vez do jogador
-    const handleChallengeComplete = () => {
-        setCurrentPlayerIndex(prevIndex => (prevIndex === 0 ? 1 : 0));
-    };
-
-    // Função para renderizar o componente do jogo selecionado
-    const renderGameComponent = () => {
-        const commonProps = { player1Name, player2Name, currentPlayerIndex, onChallengeComplete: handleChallengeComplete };
-        switch (currentGame) {
-            case 'wheel':
-                return <WheelGame {...commonProps} />;
-            case 'dice':
-                return <DiceGame {...commonProps} />;
-            case 'cards':
-                return <CardGame {...commonProps} />;
-            case 'path':
-                return <PathGame {...commonProps} />;
-            case 'kamasutra':
-                return <KamasutraGame {...commonProps} />;
-            default:
-                return null;
-        }
-    };
-
-    // Função para renderizar as diferentes telas do aplicativo
-    const renderScreen = () => {
-        switch (screen) {
-            case 'home':
-                return (
-                    <div className="flex flex-col items-center justify-center h-full p-4">
-                        <h1 className="text-5xl font-extrabold text-white mb-8 text-center drop-shadow-lg">
-                            Plataforma da Intimidade
-                        </h1>
-                        <p className="text-lg text-rose-100 mb-12 text-center max-w-md">
-                            Uma coleção de jogos divertidos para casais explorarem, conectarem-se e experimentarem coisas novas juntos.
-                        </p>
-                        <button
-                            onClick={() => setScreen('setup')}
-                            className="bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-300"
-                        >
-                            Começar
-                        </button>
-                    </div>
-                );
-            case 'setup':
-                return (
-                    <div className="flex flex-col items-center justify-center h-full p-4">
-                        <h2 className="text-4xl font-bold text-white mb-8">Configuração dos Jogadores</h2>
-                        <div className="w-full max-w-sm bg-white bg-opacity-10 p-8 rounded-xl shadow-lg backdrop-blur-sm">
-                            <div className="mb-6">
-                                <label htmlFor="player1" className="block text-rose-100 text-lg font-semibold mb-2">
-                                    Nome do Jogador 1:
-                                </label>
-                                <input
-                                    type="text"
-                                    id="player1"
-                                    value={player1Name}
-                                    onChange={(e) => setPlayer1Name(e.target.value)}
-                                    className="w-full p-3 rounded-lg bg-white bg-opacity-20 text-white placeholder-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400"
-                                    placeholder="Ex: Ana"
-                                />
                             </div>
-                            <div className="mb-8">
-                                <label htmlFor="player2" className="block text-rose-100 text-lg font-semibold mb-2">
-                                    Nome do Jogador 2:
-                                </label>
-                                <input
-                                    type="text"
-                                    id="player2"
-                                    value={player2Name}
-                                    onChange={(e) => setPlayer2Name(e.target.value)}
-                                    className="w-full p-3 rounded-lg bg-white bg-opacity-20 text-white placeholder-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400"
-                                    placeholder="Ex: Pedro"
-                                />
+                        ) : (
+                            !currentPosition ? (
+                                <p className="text-lg text-rose-200 mb-6">Sorteie uma posição para começar a explorar!</p>
+                            ) : (
+                                <div className="text-xl text-white space-y-4 mb-6">
+                                    <h4 className="text-3xl font-bold text-rose-100">{currentPosition.name}</h4>
+                                    <img
+                                        src={currentPosition.imageUrl}
+                                        alt={`Ilustração da posição: ${currentPosition.name}`}
+                                        className="rounded-lg shadow-md mx-auto w-full max-w-xs sm:max-w-sm md:max-w-md h-auto"
+                                        onError={(e) => {
+                                            e.target.onerror = null;
+                                            e.target.src = "https://placehold.co/300x200/FFB6C1/FFFFFF?text=Imagem+Indisponível";
+                                        }}
+                                    />
+                                    <p className="italic leading-relaxed text-rose-50">{currentPosition.description}</p>
+
+                                    {/* LLM-powered tip button and display */}
+                                    {!llmTip && !llmTipLoading && (
+                                        <button
+                                            onClick={generatePositionTip}
+                                            className="mt-4 bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-300"
+                                        >
+                                            ✨ Dicas da Posição com IA
+                                        </button>
+                                    )}
+                                    {llmTipLoading && (
+                                        <div className="mt-4 text-lg text-rose-200">
+                                            ✨ A gerar dica...
+                                        </div>
+                                    )}
+                                    {llmTip && (
+                                        <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
+                                            <span className="font-semibold">Dica da ✨IA:</span> {llmTip}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        )}
+                        <button
+                            onClick={drawPosition}
+                            disabled={drawing}
+                            className={`bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition-transform duration-300 ${drawing ? 'opacity-70 cursor-not-allowed' : 'hover:scale-105 active:scale-95'} focus:outline-none focus:ring-4 focus:ring-pink-300`}
+                        >
+                            {drawing ? 'A Sortear...' : 'Sortear Nova Posição'}
+                        </button>
+                        {currentPosition && !drawing && (
+                            <button
+                                onClick={() => {
+                                    setCurrentPosition(null);
+                                    setLlmTip(null); // Clear tip on completion
+                                    onChallengeComplete();
+                                }}
+                                className="mt-4 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
+                            >
+                                Desafio Concluído! Próxima Ronda
+                            </button>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+
+        // Componente Principal do Aplicativo
+        const App = () => {
+            const [screen, setScreen] = React.useState('home'); // 'home', 'setup', 'gameSelection', 'wheelGame', 'diceGame', 'cardGame', 'pathGame', 'kamasutraGame'
+            const [player1Name, setPlayer1Name] = React.useState('');
+            const [player2Name, setPlayer2Name] = React.useState('');
+            const [currentPlayerIndex, setCurrentPlayerIndex] = React.useState(0); // 0 para Jogador 1, 1 para Jogador 2
+            const [currentGame, setCurrentGame] = React.useState(null); // Armazena o jogo selecionado ('wheel', 'dice', 'cards', 'path', 'kamasutra')
+
+            // Função para iniciar o jogo após a configuração dos nomes
+            const startGame = () => {
+                if (player1Name.trim() === '' || player2Name.trim() === '') {
+                    // Mensagem de erro para o utilizador, sem usar alert()
+                    // Poderíamos adicionar um estado para exibir um modal ou um texto temporário na UI
+                    console.error('Por favor, introduza o nome de ambos os jogadores!');
+                    return;
+                }
+                setScreen('gameSelection');
+            };
+
+            // Função para alternar a vez do jogador
+            const handleChallengeComplete = () => {
+                setCurrentPlayerIndex(prevIndex => (prevIndex === 0 ? 1 : 0));
+            };
+
+            // Função para renderizar o componente do jogo selecionado
+            const renderGameComponent = () => {
+                const commonProps = { player1Name, player2Name, currentPlayerIndex, onChallengeComplete: handleChallengeComplete };
+                switch (currentGame) {
+                    case 'wheel':
+                        return <WheelGame {...commonProps} />;
+                    case 'dice':
+                        return <DiceGame {...commonProps} />;
+                    case 'cards':
+                        return <CardGame {...commonProps} />;
+                    case 'path':
+                        return <PathGame {...commonProps} />;
+                    case 'kamasutra':
+                        return <KamasutraGame {...commonProps} />;
+                    default:
+                        return null;
+                }
+            };
+
+            // Função para renderizar as diferentes telas do aplicativo
+            const renderScreen = () => {
+                switch (screen) {
+                    case 'home':
+                        return (
+                            <div className="flex flex-col items-center justify-center h-full p-4">
+                                <h1 className="text-5xl font-extrabold text-white mb-8 text-center drop-shadow-lg">
+                                    Plataforma da Intimidade
+                                </h1>
+                                <p className="text-lg text-rose-100 mb-12 text-center max-w-md">
+                                    Uma coleção de jogos divertidos para casais explorarem, conectarem-se e experimentarem coisas novas juntos.
+                                </p>
+                                <button
+                                    onClick={() => setScreen('setup')}
+                                    className="bg-rose-500 hover:bg-rose-600 text-white font-bold py-4 px-8 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-300"
+                                >
+                                    Começar
+                                </button>
                             </div>
-                            <button
-                                onClick={startGame}
-                                className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-300"
-                            >
-                                Continuar
-                            </button>
-                        </div>
-                    </div>
-                );
-            case 'gameSelection':
-                return (
-                    <div className="flex flex-col items-center justify-center h-full p-4">
-                        <h2 className="text-4xl font-bold text-white mb-8 text-center">Selecione um Jogo</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
-                            <button
-                                onClick={() => { setCurrentGame('wheel'); setScreen('game'); }}
-                                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-400 flex flex-col items-center justify-center"
-                            >
-                                <span className="text-3xl mb-2">🎡</span>
-                                <span className="text-xl">Roleta da Intimidade</span>
-                                <span className="text-sm opacity-80 mt-1">Verdades e Desafios</span>
-                            </button>
-                            <button
-                                onClick={() => { setCurrentGame('dice'); setScreen('game'); }}
-                                className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-pink-400 flex flex-col items-center justify-center"
-                            >
-                                <span className="text-3xl mb-2">🎲</span>
-                                <span className="text-xl">Dados do Desejo</span>
-                                <span className="text-sm opacity-80 mt-1">Combinações Sensuais</span>
-                            </button>
-                            <button
-                                onClick={() => { setCurrentGame('cards'); setScreen('game'); }}
-                                className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-rose-400 flex flex-col items-center justify-center"
-                            >
-                                <span className="text-3xl mb-2">🃏</span>
-                                <span className="text-xl">Baralho do Prazer</span>
-                                <span className="text-sm opacity-80 mt-1">Intimidade e Fantasias</span>
-                            </button>
-                            {/* Rota do Prazer - agora ativa! */}
-                            <button
-                                onClick={() => { setCurrentGame('path'); setScreen('game'); }}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-400 flex flex-col items-center justify-center"
-                            >
-                                <span className="text-3xl mb-2">🗺️</span>
-                                <span className="text-xl">Rota do Prazer</span>
-                                <span className="text-sm opacity-80 mt-1">Uma jornada de descoberta</span>
-                            </button>
-                            {/* Kamasutra Game - now active! */}
-                            <button
-                                onClick={() => { setCurrentGame('kamasutra'); setScreen('game'); }}
-                                className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-400 flex flex-col items-center justify-center"
-                            >
-                                <span className="text-3xl mb-2">🧘‍♀️</span> {/* Using a yoga/meditation emoji as placeholder for now */}
-                                <span className="text-xl">Posições do Kamasutra</span>
-                                <span className="text-sm opacity-80 mt-1">Explore Novas Formas</span>
-                            </button>
-                        </div>
-                        <button
-                            onClick={() => {
-                                setScreen('setup');
-                            }}
-                            className="mt-8 text-rose-200 hover:text-rose-50 text-sm opacity-80 transition-opacity duration-300"
-                        >
-                            Voltar para Configuração
-                        </button>
-                    </div>
-                );
-            case 'game':
-                return (
-                    <div className="flex flex-col items-center justify-between h-full p-4">
-                        {renderGameComponent()}
-                        <button
-                            onClick={() => {
-                                setCurrentGame(null); // Limpar jogo atual
-                                setCurrentPlayerIndex(0); // Reiniciar turno
-                                setScreen('gameSelection');
-                            }}
-                            className="mt-auto mb-4 text-rose-200 hover:text-rose-50 text-sm opacity-80 transition-opacity duration-300"
-                        >
-                            Voltar para Seleção de Jogos
-                        </button>
-                    </div>
-                );
-            default:
-                return null;
-        }
-    };
+                        );
+                    case 'setup':
+                        return (
+                            <div className="flex flex-col items-center justify-center h-full p-4">
+                                <h2 className="text-4xl font-bold text-white mb-8">Configuração dos Jogadores</h2>
+                                <div className="w-full max-w-sm bg-white bg-opacity-10 p-8 rounded-xl shadow-lg backdrop-blur-sm">
+                                    <div className="mb-6">
+                                        <label htmlFor="player1" className="block text-rose-100 text-lg font-semibold mb-2">
+                                            Nome do Jogador 1:
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="player1"
+                                            value={player1Name}
+                                            onChange={(e) => setPlayer1Name(e.target.value)}
+                                            className="w-full p-3 rounded-lg bg-white bg-opacity-20 text-white placeholder-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                                            placeholder="Ex: Ana"
+                                        />
+                                    </div>
+                                    <div className="mb-8">
+                                        <label htmlFor="player2" className="block text-rose-100 text-lg font-semibold mb-2">
+                                            Nome do Jogador 2:
+                                        </label>
+                                        <input
+                                            type="text"
+                                            id="player2"
+                                            value={player2Name}
+                                            onChange={(e) => setPlayer2Name(e.target.value)}
+                                            className="w-full p-3 rounded-lg bg-white bg-opacity-20 text-white placeholder-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                                            placeholder="Ex: Pedro"
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={startGame}
+                                        className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-300"
+                                    >
+                                        Continuar
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    case 'gameSelection':
+                        return (
+                            <div className="flex flex-col items-center justify-center h-full p-4">
+                                <h2 className="text-4xl font-bold text-white mb-8 text-center">Selecione um Jogo</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+                                    <button
+                                        onClick={() => { setCurrentGame('wheel'); setScreen('game'); }}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-400 flex flex-col items-center justify-center"
+                                    >
+                                        <span className="text-3xl mb-2">🎡</span>
+                                        <span className="text-xl">Roleta da Intimidade</span>
+                                        <span className="text-sm opacity-80 mt-1">Verdades e Desafios</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { setCurrentGame('dice'); setScreen('game'); }}
+                                        className="bg-pink-600 hover:bg-pink-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-pink-400 flex flex-col items-center justify-center"
+                                    >
+                                        <span className="text-3xl mb-2">🎲</span>
+                                        <span className="text-xl">Dados do Desejo</span>
+                                        <span className="text-sm opacity-80 mt-1">Combinações Sensuais</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { setCurrentGame('cards'); setScreen('game'); }}
+                                        className="bg-rose-600 hover:bg-rose-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-rose-400 flex flex-col items-center justify-center"
+                                    >
+                                        <span className="text-3xl mb-2">🃏</span>
+                                        <span className="text-xl">Baralho do Prazer</span>
+                                        <span className="text-sm opacity-80 mt-1">Intimidade e Fantasias</span>
+                                    </button>
+                                    {/* Rota do Prazer - agora ativa! */}
+                                    <button
+                                        onClick={() => { setCurrentGame('path'); setScreen('game'); }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-400 flex flex-col items-center justify-center"
+                                    >
+                                        <span className="text-3xl mb-2">🗺️</span>
+                                        <span className="text-xl">Rota do Prazer</span>
+                                        <span className="text-sm opacity-80 mt-1">Uma jornada de descoberta</span>
+                                    </button>
+                                    {/* Kamasutra Game - now active! */}
+                                    <button
+                                        onClick={() => { setCurrentGame('kamasutra'); setScreen('game'); }}
+                                        className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-400 flex flex-col items-center justify-center"
+                                    >
+                                        <span className="text-3xl mb-2">🧘‍♀️</span> {/* Using a yoga/meditation emoji as placeholder for now */}
+                                        <span className="text-xl">Posições do Kamasutra</span>
+                                        <span className="text-sm opacity-80 mt-1">Explore Novas Formas</span>
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setScreen('setup');
+                                    }}
+                                    className="mt-8 text-rose-200 hover:text-rose-50 text-sm opacity-80 transition-opacity duration-300"
+                                >
+                                    Voltar para Configuração
+                                </button>
+                            </div>
+                        );
+                    case 'game':
+                        return (
+                            <div className="flex flex-col items-center justify-between h-full p-4">
+                                {renderGameComponent()}
+                                <button
+                                    onClick={() => {
+                                        setCurrentGame(null); // Limpar jogo atual
+                                        setCurrentPlayerIndex(0); // Reiniciar turno
+                                        setScreen('gameSelection');
+                                    }}
+                                    className="mt-auto mb-4 text-rose-200 hover:text-rose-50 text-sm opacity-80 transition-opacity duration-300"
+                                >
+                                    Voltar para Seleção de Jogos
+                                </button>
+                            </div>
+                        );
+                    default:
+                        return null;
+                }
+            };
 
-    return (
-        <div className="font-inter antialiased min-h-screen bg-gradient-to-br from-purple-800 via-pink-700 to-rose-600 flex flex-col items-center justify-center text-white">
-            <style>
-                {`
-                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;800&display=swap');
-                body { font-family: 'Inter', sans-serif; }
-                /* Estilos para os segmentos da roleta, geridos inline para cores dinâmicas */
-                `}
-            </style>
-            {/* Tailwind CSS CDN */}
-            <script src="https://cdn.tailwindcss.com"></script>
-            {renderScreen()}
-        </div>
-    );
-};
+            return (
+                <div className="font-inter antialiased min-h-screen bg-gradient-to-br from-purple-800 via-pink-700 to-rose-600 flex flex-col items-center justify-center text-white">
+                    {renderScreen()}
+                </div>
+            );
+        };
 
-export default App;
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
