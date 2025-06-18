@@ -13,10 +13,17 @@
     <style>
         /* Define a fonte Inter como padrão para todo o corpo */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700;800&display=swap');
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%; /* Garante que HTML e Body ocupem a altura total */
+            width: 100%;  /* Garante que HTML e Body ocupem a largura total */
+            overflow-x: hidden; /* Evita rolagem horizontal */
+        }
         body {
             font-family: 'Inter', sans-serif;
-            margin: 0;
-            overflow-x: hidden; /* Evita rolagem horizontal */
+            /* Aplica o gradiente diretamente ao body para preencher toda a tela */
+            background: linear-gradient(to bottom right, #5b21b6, #db2777, #e11d48); /* Cores do gradiente */
         }
         /* Estilos adicionais para centralizar e garantir altura total */
         #root {
@@ -25,12 +32,13 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            width: 100%; /* Garante que o root também ocupe a largura total */
         }
         /* Estilos para os segmentos da roleta (cores dinâmicas são geridas via JS) */
     </style>
 </head>
 <body>
-    <div id="root" class="w-full"></div>
+    <div id="root"></div>
 
     <script type="text/babel">
         // Componente da Roleta da Intimidade (Jogo Original)
@@ -272,9 +280,10 @@
                     )}
 
                     {currentChallenge && (
-                        <div className="bg-white bg-opacity-20 p-6 rounded-xl shadow-xl backdrop-blur-sm max-w-sm w-full mx-auto my-4 transform transition-all duration-500 scale-100 opacity-100">
+                        <div className="bg-white bg-opacity-20 p-6 rounded-xl shadow-xl backdrop-blur-sm w-full mx-auto my-4 transform transition-all duration-500 scale-100 opacity-100">
                             <h3 className="text-2xl font-bold text-rose-100 mb-3">{currentChallenge.type}!</h3>
-                            <p className="text-xl text-white italic leading-relaxed">{currentChallenge.text}</p>
+                            {/* Adjusted font size here */}
+                            <p className="text-lg text-white italic leading-relaxed">{currentChallenge.text}</p>
                             <button
                                 onClick={() => {
                                     setCurrentChallenge(null);
@@ -367,17 +376,19 @@
                     <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
                         Vez de: <span className="text-rose-300">{currentPlayerName}</span>
                     </h2>
-                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
+                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm w-full">
                         <h3 className="text-2xl font-bold text-rose-100 mb-4">Dados do Desejo</h3>
                         {!diceResult ? (
                             <p className="text-lg text-rose-200 mb-6">Rolam os dados para ver o desafio!</p>
                         ) : (
                             <div className="text-xl text-white space-y-2 mb-6">
+                                {/* Adjusted font size here */}
                                 <p><span className="font-semibold text-rose-200">Quem:</span> {diceResult.who === 'Ambos' ? `Ambos` : `${diceResult.who}`}</p>
                                 <p><span className="font-semibold text-rose-200">O Quê:</span> {diceResult.what}</p>
                                 <p><span className="font-semibold text-rose-200">Onde:</span> {diceResult.where}</p>
                                 <p><span className="font-semibold text-rose-200">Como:</span> {diceResult.how}</p>
-                                <p className="mt-4 text-rose-100 text-2xl font-bold">
+                                {/* Adjusted font size here */}
+                                <p className="mt-4 text-lg text-rose-100 font-bold">
                                     Desafio: {diceResult.what} {diceResult.how} em {diceResult.where} {diceResult.who === 'Ambos' ? 'com o parceiro(a)' : ''}.
                                 </p>
 
@@ -397,7 +408,7 @@
                                     </div>
                                 )}
                                 {llmGeneratedIdea && (
-                                    <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
+                                    <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-base text-rose-50 italic">
                                         <span className="font-semibold">Sugestão do ✨Mestre:</span> {llmGeneratedIdea}
                                     </div>
                                 )}
@@ -509,7 +520,7 @@
                     <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
                         Vez de: <span className="text-rose-300">{currentPlayerName}</span>
                     </h2>
-                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
+                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm w-full">
                         <h3 className="text-2xl font-bold text-rose-100 mb-4">Baralho do Prazer</h3>
                         {!currentCard && !llmLoading ? (
                             <p className="text-lg text-rose-200 mb-6">Puxe uma carta ou crie uma nova com IA!</p>
@@ -520,7 +531,8 @@
                                 ) : (
                                     <>
                                         <p><span className="font-semibold text-rose-200">{currentCard.type}:</span></p>
-                                        <p className="mt-2 text-rose-100 text-2xl font-bold italic leading-relaxed">{currentCard.text}</p>
+                                        {/* Adjusted font size here */}
+                                        <p className="mt-2 text-xl text-rose-100 font-bold italic leading-relaxed">{currentCard.text}</p>
                                     </>
                                 )}
                             </div>
@@ -691,7 +703,7 @@
                     <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
                         Vez de: <span className="text-rose-300">{currentPlayerName}</span>
                     </h2>
-                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
+                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm w-full">
                         <h3 className="text-2xl font-bold text-rose-100 mb-4">{currentStation.name}</h3>
                         <p className="text-xl text-white italic leading-relaxed mb-6">
                             {currentStation.task}
@@ -724,7 +736,7 @@
                         )}
 
                         {llmGeneratedDetail && (
-                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
+                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-base text-rose-50 italic">
                                 <span className="font-semibold">Sugestão do ✨Mestre:</span> {llmGeneratedDetail}
                             </div>
                         )}
@@ -736,7 +748,7 @@
                         )}
 
                         {llmEnvironmentSuggestion && (
-                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
+                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-base text-rose-50 italic">
                                 <span className="font-semibold">Ambiente Sugerido:</span> {llmEnvironmentSuggestion}
                             </div>
                         )}
@@ -944,7 +956,7 @@
                     <h2 className="text-3xl font-bold text-white mb-4 drop-shadow">
                         Vez de: <span className="text-rose-300">{currentPlayerName}</span>
                     </h2>
-                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm max-w-lg w-full">
+                    <div className="bg-white bg-opacity-20 p-8 rounded-xl shadow-xl backdrop-blur-sm w-full">
                         <h3 className="text-2xl font-bold text-rose-100 mb-4">Posições do Kamasutra</h3>
                         {drawing ? (
                             <div className="text-xl text-rose-200 mb-6">
@@ -968,7 +980,8 @@
                                             e.target.src = "https://placehold.co/300x200/FFB6C1/FFFFFF?text=Imagem+Indisponível";
                                         }}
                                     />
-                                    <p className="italic leading-relaxed text-rose-50">{currentPosition.description}</p>
+                                    {/* Adjusted font size here */}
+                                    <p className="italic leading-relaxed text-lg text-rose-50">{currentPosition.description}</p>
 
                                     {/* LLM-powered tip button and display */}
                                     {!llmTip && !llmTipLoading && (
@@ -985,7 +998,7 @@
                                         </div>
                                     )}
                                     {llmTip && (
-                                        <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
+                                        <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-base text-rose-50 italic">
                                             <span className="font-semibold">Dica da ✨IA:</span> {llmTip}
                                         </div>
                                     )}
@@ -1084,7 +1097,7 @@
                         return (
                             <div className="flex flex-col items-center justify-center h-full p-4">
                                 <h2 className="text-4xl font-bold text-white mb-8">Configuração dos Jogadores</h2>
-                                <div className="w-full max-w-sm bg-white bg-opacity-10 p-8 rounded-xl shadow-lg backdrop-blur-sm">
+                                <div className="w-full bg-white bg-opacity-10 p-8 rounded-xl shadow-lg backdrop-blur-sm">
                                     <div className="mb-6">
                                         <label htmlFor="player1" className="block text-rose-100 text-lg font-semibold mb-2">
                                             Nome do Jogador 1:
@@ -1124,7 +1137,7 @@
                         return (
                             <div className="flex flex-col items-center justify-center h-full p-4">
                                 <h2 className="text-4xl font-bold text-white mb-8 text-center">Selecione um Jogo</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-2xl">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                                     <button
                                         onClick={() => { setCurrentGame('wheel'); setScreen('game'); }}
                                         className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-purple-400 flex flex-col items-center justify-center"
@@ -1200,7 +1213,7 @@
             };
 
             return (
-                <div className="font-inter antialiased min-h-screen bg-gradient-to-br from-purple-800 via-pink-700 to-rose-600 flex flex-col items-center justify-center text-white">
+                <div className="font-inter antialiased min-h-screen flex flex-col items-center justify-center text-white">
                     {renderScreen()}
                 </div>
             );
