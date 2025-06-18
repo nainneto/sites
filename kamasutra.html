@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sorteador de Posições</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c; /* Fundo escuro */
+            color: #e2e8f0; /* Texto claro */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: #2d3748; /* Cor de fundo do contêiner */
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            font-size: 2.25rem; /* Tamanho do título */
+            font-weight: 700;
+            margin-bottom: 25px;
+            color: #4299e1; /* Azul vibrante */
+        }
+        #positionDisplay {
+            font-size: 1.8rem; /* Tamanho do texto da posição */
+            font-weight: 700;
+            margin-bottom: 30px;
+            min-height: 150px; /* Garante espaço para conteúdo */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #a0aec0; /* Tom de cinza para o texto */
+            word-break: break-word; /* Quebra palavras longas */
+        }
+        #positionDisplay img {
+            max-width: 300px; /* Tamanho máximo da imagem */
+            height: auto;
+            margin-bottom: 15px;
+            border-radius: 8px; /* Bordas arredondadas para a imagem */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra para a imagem */
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px; /* Espaçamento entre os botões */
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        .button {
+            background-color: #4299e1; /* Azul para o botão */
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border: none;
+            outline: none;
+        }
+        .button:hover {
+            background-color: #3182ce; /* Azul mais escuro no hover */
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+        .button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        .button:disabled {
+            background-color: #60a5fa; /* Cor mais clara quando desabilitado */
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #4299e1;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .llm-output-card {
+            background-color: #2d3748;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            border: 1px solid #4a5568;
+            text-align: left;
+            width: 100%;
+            max-width: 450px; /* Para manter o layout dentro do container */
+            display: none; /* Escondido por padrão */
+        }
+        .llm-output-card.visible {
+            display: block;
+        }
+        .llm-output-card h3 {
+            color: #4299e1;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .llm-output-card p {
+            color: #e2e8f0;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.75rem;
+            }
+            #positionDisplay {
+                font-size: 1.5rem;
+            }
+            .button {
+                padding: 12px 25px;
+                font-size: 1rem;
+            }
+            #positionDisplay img {
+                max-width: 250px; /* Adapta o tamanho da imagem para telas menores */
+            }
+            .llm-output-card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sorteador de Posições do Kama Sutra</h1>
+        <div id="positionDisplay">
+            Pressione o botão para começar!
+        </div>
+
+        <div class="button-group">
+            <button id="drawButton" class="button">Sortear Posição</button>
+            <button id="atmosphereButton" class="button" disabled>Gerar Ambiente ✨</button>
+            <button id="scenarioButton" class="button" disabled>Gerar Roteiro ✨</button>
+        </div>
+
+        <div id="atmosphereOutput" class="llm-output-card">
+            <h3>Sugestão de Ambiente</h3>
+            <p id="atmosphereText"></p>
+        </div>
+
+        <div id="scenarioOutput" class="llm-output-card">
+            <h3>Sugestão de Roteiro Criativo</h3>
+            <p id="scenarioText"></p>
+        </div>
+    </div>
+
+    <script>
+        // Função para extrair o ID do arquivo de uma URL do Google Drive e formatar a URL direta
+        function getDirectDriveImageUrl(driveUrl) {
+            const regex = /drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)\/view/;
+            const match = driveUrl.match(regex);
+            if (match && match[1]) {
+                return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+            }
+            return ''; // Retorna string vazia se não conseguir extrair o ID
+        }
+
+        // URLs do Google Drive fornecidas pelo usuário
+        const googleDriveUrls = [
+            "https://drive.google.com/file/d/1-3dflwjQ42mKyFHtwfMBSv_VLcUoTXjr/view?usp=sharing",
+            "https://drive.google.com/file/d/1-8UD28qo4BSOWaIYuKJLTeyi2wUyrRzP/view?usp=sharing",
+            "https://drive.google.com/file/d/1007CmFeqMrjmyXJJlHx2w4V4CqxkuaMU/view?usp=sharing",
+            "https://drive.google.com/file/d/100WHgf2MMHneGrKXnwIHUCn5Uju7mU6Z/view?usp=sharing",
+            "https://drive.google.com/file/d/10ybHqJhhzgkurzbXE5vHKmE8W3u3hKHf/view?usp=sharing",
+            "https://drive.google.com/file/d/11nSko9DmukU__Ikl5h_1UtXFde9p5KLJ/view?usp=sharing",
+            "https://drive.google.com/file/d/11qqvJ_N8qLEMjWpZM3QsJR-NGNzlE_K0/view?usp=sharing",
+            "https://drive.google.com/file/d/12vszpqqU-fY9C68Upg7edFbEjnXHcuJ_/view?usp=sharing",
+            "https://drive.google.com/file/d/13H_C9MZ2qLQXOxdKOdZ-Fufd5dnwS_BA/view?usp=sharing",
+            "https://drive.google.com/file/d/13T0S3deWsSHW3XLrJxXRXV2K4x3J4dJd/view?usp=sharing",
+            "https://drive.google.com/file/d/14wAHBzIqZd0p6SDr32-KgPZVd0YUZ1L1/view?usp=sharing",
+            "https://drive.google.com/file/d/14yBkZYRLhWh9aXey18QCNVXQlogVbWrd/view?usp=sharing",
+            "https://drive.google.com/file/d/15VWJIYi-ZYO8cC3wD5Z74q3doXaRS2Ls/view?usp=sharing",
+            "https://drive.google.com/file/d/17vmN0dHTAh73qqAMdnekjM6Ra2nu3N70/view?usp=sharing",
+            "https://drive.google.com/file/d/18NUMBKwPhcEbr5y7HCQ9e9a0qw1oJYCt/view?usp=sharing",
+            "https://drive.google.com/file/d/18qPfdYza2V7QiWYMjdRg_yOYp9c85MOJ/view?usp=sharing",
+            "https://drive.google.com/file/d/18qRrAlkg25TdQnbJqUYdbcd8ObZSo_s2/view?usp=sharing",
+            "https://drive.google.com/file/d/19NC8-BrODh_V3yZtlTVGwwrxm0HajcwM/view?usp=sharing",
+            "https://drive.google.com/file/d/1AZEoI_DcJwwJOmd7BVnAYu7XmNK1TMJL/view?usp=sharing",
+            "https://drive.google.com/file/d/1BrZMWUpL_JWhbfAcwVCUkEn4RHriUaRD/view?usp=sharing",
+            "https://drive.google.com/file/d/1ConBDic2MboMPm26_WO-r8MZnDXMqqqx/view?usp=sharing",
+            "https://drive.google.com/file/d/1Dcla1QQ9DR1p1hFJ1AG5MwqJ9mmjIuza/view?usp=sharing",
+            "https://drive.google.com/file/d/1EJcNh-tEk18YBUYwLzPDoOxUDzmmhVrs/view?usp=sharing",
+            "https://drive.google.com/file/d/1EJzFM_kTMDciZ3Fb7Gskc-P9OZ89GgTj/view?usp=sharing",
+            "https://drive.google.com/file/d/1G0h86w2HSx0MrnavI9pI0Enz5ekyHLLz/view?usp=sharing",
+            "https://drive.google.com/file/d/1IofcRuhfoLsQ7Z1OAP7_ZbwK5WgmilmJ/view?usp=sharing",
+            "https://drive.google.com/file/d/1IqZlPZ5hOWlqEvNp_T6xq1vjPpIRXC-Q/view?usp=sharing",
+            "https://drive.google.com/file/d/1LaAqWiNgiiRtCnMxkynR9C9BNOvB1taO/view?usp=sharing",
+            "https://drive.google.com/file/d/1N7ghZoYbF6xjXbsjmhEhknE-dUpHe377/view?usp=sharing",
+            "https://drive.google.com/file/d/1NSY7tWJwat25RP2u6sOBLgAOobLEkYNa/view?usp=sharing",
+            "https://drive.google.com/file/d/1Niqa3Y1dPTtvx8-_DDEHeRJTORlE5BIN/view?usp=sharing",
+            "https://drive.google.com/file/d/1P-px4DUPEIOaW4KKEvy33pN3-Nihrt5P/view?usp=sharing",
+            "https://drive.google.com/file/d/1QJlFbJPRF8TSlj4g2jos0qjHhc4OyNOK/view?usp=sharing",
+            "https://drive.google.com/file/d/1Qva7bqbUicPHQDl0qK1D3Unz93lvSwzj/view?usp=sharing",
+            "https://drive.google.com/file/d/1R2jVgODU8XhCA3xTGC8A5jhHCCL8vTmE/view?usp=sharing",
+            "https://drive.google.com/file/d/1R8tZ5sdgk5nT0wRfYohuRCvH2iZfXAGL/view?usp=sharing",
+            "https://drive.google.com/file/d/1RRxFb2Eqt7FpI9KOqWYMbUOkeQyr4rMm/view?usp=sharing",
+            "https://drive.google.com/file/d/1SH7EigX-euS2DTi6G1eZS0ENVOTKCHVn/view?usp=sharing",
+            "https://drive.google.com/file/d/1TBrMW25OIjB9t8K5Oj07DAIFJrLK6LLp/view?usp=sharing",
+            "https://drive.google.com/file/d/1TRR2h-zL-BHWOripEc0gSOyKJ40xpKBj/view?usp=sharing",
+            "https://drive.google.com/file/d/1WjOM_1s7BrpmY2vSq8Le86h90ET0KFCe/view?usp=sharing",
+            "https://drive.google.com/file/d/1XbARfLzKly1jp9Bu1MBop5n9c3CQfLN-/view?usp=sharing",
+            "https://drive.google.com/file/d/1XbeIhBcn2FTNbtnvvBSuX5k-41_Fq7vS/view?usp=sharing",
+            "https://drive.google.com/file/d/1Xu05_Z_w2W5bBoYFmFGg2p7id2IOSmQ4/view?usp=sharing",
+            "https://drive.google.com/file/d/1YbTQBF0KdYgZWKmDgdWD5nOMTU1BUe8z/view?usp=sharing",
+            "https://drive.google.com/file/d/1Yf7EJFqrU2t5g_TWPcdJ5eRu2YxI9FN6/view?usp=sharing",
+            "https://drive.google.com/file/d/1Yo5T9R2nNqngVd_D6lKyOxpaEJAI411m/view?usp=sharing",
+            "https://drive.google.com/file/d/1Z5JnVkSolultLdwctOvNGESQKt8VphRI/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZKGp5g3kKQxcmYSUpTk93WKYMjdODi7k/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZPtdqX-ap82GZsU61952E087B1ZpuaEn/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZbIDizB611k023tpBq4N65jn2rTW3wLk/view?usp=sharing",
+            "https://drive.google.com/file/d/1Zf-iuaG1FwiOAjhiSiu6q0TuVYkBE24D/view?usp=sharing",
+            "https://drive.google.com/file/d/1_1fW3C6aOvwOJQUQ8t_bSLJ_DUTYII1E/view?usp=sharing",
+            "https://drive.google.com/file/d/1_7q0Rz4GLFOHUUuvIfXg91G4S7Nowbja/view?usp=sharing",
+            "https://drive.google.com/file/d/1b_fWzqokd1D8Cdd1lgoFVgy4o7nu2jak/view?usp=sharing",
+            "https://drive.google.com/file/d/1bgJjLTuQ-DqN_BT67-KL9MahfXnpP3Ai/view?usp=sharing",
+            "https://drive.google.com/file/d/1cwQYdMx2KVdQ6A0S2mFS7W2dWA8xXUT4/view?usp=sharing",
+            "https://drive.google.com/file/d/1cxhtX96fxepNaybb8Tu-CCeItb7ZRqTs/view?usp=sharing",
+            "https://drive.google.com/file/d/1eU__4IcvhRREQrrxPbaKtTHzJyOofkzJ/view?usp=sharing",
+            "https://drive.google.com/file/d/1fV0RNibdyt4MpWkLB84BGlFh8Lswogc8/view?usp=sharing",
+            "https://drive.google.com/file/d/1gFttfKiphYXL_Xiptmvh6k71YrAhB-cc/view?usp=sharing",
+            "https://drive.google.com/file/d/1goPGEzyRpmRsC4nJmoYfw1hQzxA5G7Qz/view?usp=sharing",
+            "https://drive.google.com/file/d/1hqxcRNdY8YGZCzYo98VFJM9jqvNKWcyE/view?usp=sharing",
+            "https://drive.google.com/file/d/1i--ud6fn00nJ-FDQDitWIbyomykI-qZq/view?usp=sharing",
+            "https://drive.google.com/file/d/1idpUvYGPllrTI4reCkyc9mF22uD3ECF9/view?usp=sharing",
+            "https://drive.google.com/file/d/1ioYRa3fnFE9pn7r-EQmq4IbXktx_uqKa/view?usp=sharing",
+            "https://drive.google.com/file/d/1isB9UfDjCBJejeCerm9kXblzrfiSPlS8/view?usp=sharing",
+            "https://drive.google.com/file/d/1jdtnY5YCytbm4Ma9a5-JLf-QCDTz7Et_/view?usp=sharing",
+            "https://drive.google.com/file/d/1jpiwCtdOg6GzZ4mnjb4x1Q5xzPks0H_c/view?usp=sharing",
+            "https://drive.google.com/file/d/1kSBM3oDl6wruHE7ChZq8gOYXNGfxj1Jc/view?usp=sharing",
+            "https://drive.google.com/file/d/1kiJ8EJCvVpKH293cnk-s_MEKHF32lAlI/view?usp=sharing",
+            "https://drive.google.com/file/d/1l2-w7PB9wZKK1gClFKYMe4CRISN0rVdc/view?usp=sharing",
+            "https://drive.google.com/file/d/1m2RqYK8CDMYdY8jAs-KZeXjYqbblyy36/view?usp=sharing",
+            "https://drive.google.com/file/d/1mLhIEw3u3lTYuxkVws8XG60NHdLMZ3CO/view?usp=sharing",
+            "https://drive.google.com/file/d/1nlRf6ijgFaw27-BqQixQHTbvtoVJvgXi/view?usp=sharing",
+            "https://drive.google.com/file/d/1nrNmPo4Tx9-yboeHJldofVAM3mIKiiJD/view?usp=sharing",
+            "https://drive.google.com/file/d/1nxTzaZc1OQ-c81ciQRWf_6YBw-Rnb0TN/view?usp=sharing",
+            "https://drive.google.com/file/d/1nyV2_chpg5NSVyxCct7kyXIgwvsmexPA/view?usp=sharing",
+            "https://drive.google.com/file/d/1oh5pVIbX0NwEqZeq_lxjHaHOKE_H2FlM/view?usp=sharing",
+            "https://drive.google.com/file/d/1osri8eQnD_yYaWCSrxLhobhSIvgO6Oed/view?usp=sharing",
+            "https://drive.google.com/file/d/1pej811c7GV8cVeGKIN3-LFh8bpx08zl9/view?usp=sharing",
+            "https://drive.google.com/file/d/1qV8Zss7GE330NPXN2R1Xw5gPndrMWyXx/view?usp=sharing",
+            "https://drive.google.com/file/d/1qjzzUbMCrx9qv8XldhZEB9D3XIccwXnf/view?usp=sharing",
+            "https://drive.google.com/file/d/1sHLEsTsBnWbnQb1JGyTKkg_E6ieIy6zx/view?usp=sharing",
+            "https://drive.google.com/file/d/1sPTlK5cj0-pPVIEhPYzJ_T10zQhxef_5/view?usp=sharing",
+            "https://drive.google.com/file/d/1sU9_8y2o7ghV4l2-wKre-e72aks4fRbl/view?usp=sharing",
+            "https://drive.google.com/file/d/1t-K8iyD7H06QXGbTYzgLMh8BME09Pj7i/view?usp=sharing",
+            "https://drive.google.com/file/d/1uEfaouV4ePJjyRIdq-qbUnh4YZC9ROLC/view?usp=sharing",
+            "https://drive.google.com/file/d/1uUp3mLf28JPXK-44FvkBhJp4IJ2bAdC7/view?usp=sharing",
+            "https://drive.google.com/file/d/1uZqpVpGiWUJG4WY5IXWjc1XEfyNOSTIk/view?usp=sharing",
+            "https://drive.google.com/file/d/1vToJU38sRhl1qCzRtmSInb4I215N-gRg/view?usp=sharing",
+            "https://drive.google.com/file/d/1vlW70TYbOrFMFvOQrqkPZoAq0uiVKIbw/view?usp=sharing",
+            "https://drive.google.com/file/d/1vlnNaSu75BO_qu_lkOEPKGF0Am4ARTEQ/view?usp=sharing",
+            "https://drive.google.com/file/d/1wpH-9EkBT0IbuLAJTEW3fIBThnukI-3G/view?usp=sharing",
+            "https://drive.google.com/file/d/1x1fu4gFA2IwSPe9PTfG3QUIxuwXe6Jhm/view?usp=sharing",
+            "https://drive.google.com/file/d/1xAMQ9xSS2zRo1R1VgxPXXWqBB0CCi0zH/view?usp=sharing",
+            "https://drive.google.com/file/d/1xqV1khQx_hj3ByR6I4Qa5LiLsMRmMXV0/view?usp=sharing",
+            "https://drive.google.com/file/d/1yHwHSOP5mWdX8tf4mlvspR47hUNIuRuU/view?usp=sharing",
+            "https://drive.google.com/file/d/1yLQB67fDM4ytTRME8eLaE3tQf7zFiIPC/view?usp=sharing",
+            "https://drive.google.com/file/d/1zzuUl6Zl204PuEqx5jiX33hsg5vH7VPo/view?usp=sharing",
+
+            "https://drive.google.com/file/d/1-dc5sm0iMMiyq6h90vCVxx3UF-WtrnKw/view?usp=sharing",
+            "https://drive.google.com/file/d/10-Jqp8PXlKTySHewwkUGZj7zLlebKo7U/view?usp=sharing",
+            "https://drive.google.com/file/d/101p0ruvVozsVQbQi0rj4KiNB1JudEsV-/view?usp=sharing",
+            "https://drive.google.com/file/d/11lOU8_sexfjOJwCBSkHJywbAsMFZIZQV/view?usp=sharing",
+            "https://drive.google.com/file/d/12CPWGqxxw4XxSsAY33VNg23PvcttnkIM/view?usp=sharing",
+            "https://drive.google.com/file/d/12NrjVJFEbPiB9gxLDz2L8jPJn6Wclj8n/view?usp=sharing",
+            "https://drive.google.com/file/d/13ShMJPpKUXizjZ6D3f_0SEdfiD5u-qE-/view?usp=sharing",
+            "https://drive.google.com/file/d/13uvLaWbjdzj4xcQg58MzqpiyzrsDuu1l/view?usp=sharing",
+            "https://drive.google.com/file/d/13xtEocNNpdCS5dQgGcd4q4qLmtAhwSdi/view?usp=sharing",
+            "https://drive.google.com/file/d/13yxsEvdeu3kHRoXcQHO2QBGwlBCC53yp/view?usp=sharing",
+            "https://drive.google.com/file/d/14Mtq1BPYoS1ZN9kIPoYSUr6FAXmAcnC3/view?usp=sharing",
+            "https://drive.google.com/file/d/14T7WiLy5A7Cjzv9O11SWPOJrnK196Uo2/view?usp=sharing",
+            "https://drive.google.com/file/d/15XNqWCoHUCdjdfK6YORA_HJ3VLu2imSw/view?usp=sharing",
+            "https://drive.google.com/file/d/15eZPNIyWlfk3DWYbzmWTqlAoTek3g_Mt/view?usp=sharing",
+            "https://drive.google.com/file/d/17n55fHcsV2Vqcul5JSZPWCYuuqtlddC6/view?usp=sharing",
+            "https://drive.google.com/file/d/180DhYCkfB7Uy3mGsPoZfdgnPX3yd4rhi/view?usp=sharing",
+            "https://drive.google.com/file/d/18IumM9NH5keU3ZAqLybPyEune5r7Xz6j/view?usp=sharing",
+            "https://drive.google.com/file/d/19LK4-Xd81dpNcPfCI3b4Klu1Ccc-SqYx/view?usp=sharing",
+            "https://drive.google.com/file/d/1AudTOQ7syoXmDXrZCCDi42OolAq7Dxju/view?usp=sharing",
+            "https://drive.google.com/file/d/1AwXRIc27gBtBM5W0kFJxWpugIcLha_bM/view?usp=sharing",
+            "https://drive.google.com/file/d/1BDeBroF93pH3nUoNwdl15YplnCobtomg/view?usp=sharing",
+            "https://drive.google.com/file/d/1BGYx0yY-xoG9UUMISbM9MwzBvETVjkSo/view?usp=sharing",
+            "https://drive.google.com/file/d/1D1TKdzxuiL5aaf4f5VKAxlxsKYBRfsnz/view?usp=sharing",
+            "https://drive.google.com/file/d/1DA_ZWjRpcX85zzoxRljrmBhjJVBXcuDf/view?usp=sharing",
+            "https://drive.google.com/file/d/1DTCAHJ5ateyZR3JPDqmNZIW_391GYJ0T/view?usp=sharing",
+            "https://drive.google.com/file/d/1DnFDCp-R7yZ3h9WauzTyJN5WFSLfTPuK/view?usp=sharing",
+            "https://drive.google.com/file/d/1EAV_3PJauCU7fywduULWy1wI8jx8_9H1/view?usp=sharing",
+            "https://drive.google.com/file/d/1FO7ZXnO8KhJ1p7IV2vpMdskjHzW68hhY/view?usp=sharing",
+            "https://drive.google.com/file/d/1FbqT9P_QXY6rZ8L0dnE5tyylT6uUUSTn/view?usp=sharing",
+            "https://drive.google.com/file/d/1GY5VZDcwawo2JPtZfxgxRonTHx6HM-FX/view?usp=sharing",
+            "https://drive.google.com/file/d/1Gm59pQYeUbxpMDHD8a244mgjnRjD0AxI/view?usp=sharing",
+            "https://drive.google.com/file/d/1HXLVoqSXy4c3F3nvzkewX5snwWiNEwd5/view?usp=sharing",
+            "https://drive.google.com/file/d/1HfP_L6Z3ZUHhCTDfkyNsZ-D-fm9ilHoR/view?usp=sharing",
+            "https://drive.google.com/file/d/1HkgSsvAtuJ-E0cKgVX4godk2Y7YzofwQ/view?usp=sharing",
+            "https://drive.google.com/file/d/1HnAr8Hej6Ne8uXPpZ_wQGCcArUVOJQJ2/view?usp=sharing",
+            "https://drive.google.com/file/d/1J-0F_T-3YI33Ik0CeXUjGzQ9ucG3whGL/view?usp=sharing",
+            "https://drive.google.com/file/d/1JIRCBbyN_ehFLL6aS5wgpnTRHEC1zjrz/view?usp=sharing",
+            "https://drive.google.com/file/d/1LEiq1_kdsT7kZb2752cGieqmm7vTHngu/view?usp=sharing",
+            "https://drive.google.com/file/d/1M4ZZVVc1qyiFS8aU_ie7XHYGaFKvVkrg/view?usp=sharing",
+            "https://drive.google.com/file/d/1Mj6iDkkABSkbRXO_lTLPb2CSpxp38XXh/view?usp=sharing",
+            "https://drive.google.com/file/d/1NKLxax7QGs9jyzO2ha7rdYj58wk4VzEj/view?usp=sharing",
+            "https://drive.google.com/file/d/1OJ247eLbJwS3p6STTwjY1PJ_1p-oRQIU/view?usp=sharing",
+            "https://drive.google.com/file/d/1OmRHdPUM2wvqO8N-slKp2dIC8f-vWTZk/view?usp=sharing",
+            "https://drive.google.com/file/d/1P_YTE6ouVIOg_A8Ko0Ep_lujKHwJ1P7H/view?usp=sharing",
+            "https://drive.google.com/file/d/1PnxtiN9BqTIHdM07oViab-Cs-G5ZmLlt/view?usp=sharing",
+            "https://drive.google.com/file/d/1PzwD3WsStOR1H-CHeTXMLdkq5EH-IQff/view?usp=sharing",
+            "https://drive.google.com/file/d/1QK5QP35nJA3gT-Eeq6AM-2b-Ea5sXY_F/view?usp=sharing",
+            "https://drive.google.com/file/d/1QvI8SEZLsB4j-PuhrJpOgh8gakkQQ4po/view?usp=sharing",
+            "https://drive.google.com/file/d/1QvWLhUxI-uNekmtlzPY791-Gpgy4cu-0/view?usp=sharing",
+            "https://drive.google.com/file/d/1R-pB1PGxFiXyo7Pj6BJPGM58uK3WgzzH/view?usp=sharing",
+            "https://drive.google.com/file/d/1Rvi7ZjqMgJUBTdKO1_3DzWnKhvJl7fpV/view?usp=sharing",
+            "https://drive.google.com/file/d/1S2eOgcCy7RtsfWLxyKICJQsP7eG_hKSl/view?usp=sharing",
+            "https://drive.google.com/file/d/1Smfdv01OCvvlKgZ6w1V7WXqG3ST96L3h/view?usp=sharing",
+            "https://drive.google.com/file/d/1T-e1H3wFS5btb4zcY1cIBQDfV1BfJfLQ/view?usp=sharing",
+            "https://drive.google.com/file/d/1Trm3tbUHhidgMTXnF0CVTKizAGdoMRG5/view?usp=sharing",
+            "https://drive.google.com/file/d/1U2EyXqz8K1-eUkr5xogsguNUDSeRk2cC/view?usp=sharing",
+            "https://drive.google.com/file/d/1Ux5IRbX5TZgorsa_nRnJVtUpTZNpCWqe/view?usp=sharing",
+            "https://drive.google.com/file/d/1V39j3_QPOIUixD-9T5dq_J8fnxdgDaH5/view?usp=sharing",
+            "https://drive.google.com/file/d/1VZc80lqKJKPjsEjsT8HrRPtenQLHoCh4/view?usp=sharing",
+            "https://drive.google.com/file/d/1WdNylFNgFcVlw4JpuIYEhGjyncNh4soI/view?usp=sharing",
+            "https://drive.google.com/file/d/1Wfa0hhHx3FIJ4-JngLnuiaS2cpEIgksB/view?usp=sharing",
+            "https://drive.google.com/file/d/1WxTdOOy_K_FsQZu5W4OfWT5f9DO1S1Ky/view?usp=sharing",
+            "https://drive.google.com/file/d/1WzzikRXau8TmWMOpJfxzXC-a3qNWiRv3/view?usp=sharing",
+            "https://drive.google.com/file/d/1YFKSrL9UWclq7XRBs5sTtE-XUl6MpxVf/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZD-uTvrQU4zqQQoK4MkSC6HQIpnxzAWV/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZDPMp9lOWIoIkUqCZpqUrK_ZfeGpOO95/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZZSG-jclFfCWQNshJJeWKEHCqvOzpxQE/view?usp=sharing",
+            "https://drive.google.com/file/d/1_DC8kS3SJU7BECjOK1ojGC_n7wMme8Ek/view?usp=sharing",
+            "https://drive.google.com/file/d/1aGlEDxtyc0eB5xyK5Rk27BpV2Aosbvot/view?usp=sharing",
+            "https://drive.google.com/file/d/1aH4vKsrph5HoWlKpSLCXcU8ASr2ufD9a/view?usp=sharing",
+            "https://drive.google.com/file/d/1bzNBYk8zpQFXcuZHGGwQEzRBAos1Y_dm/view?usp=sharing",
+            "https://drive.google.com/file/d/1cyynMOiKKaYoNuM_2OVeuas4aePKQ_J8/view?usp=sharing",
+            "https://drive.google.com/file/d/1cz6xz1TZLoHKLc4can2vjuilwwWizCQ6/view?usp=sharing",
+            "https://drive.google.com/file/d/1dF0Vab4GudncIMAHsrxdpuwkbRIVXFfP/view?usp=sharing",
+            "https://drive.google.com/file/d/1dxt6rxifMOOOZWHR7PAz0fjPgnenRiGi/view?usp=sharing",
+            "https://drive.google.com/file/d/1egJ0uO_N9zpFvQBmkQvjgepBmhMWh-gs/view?usp=sharing",
+            "https://drive.google.com/file/d/1egOg8QqBZvnjM_y0XMlE2qTf8kY3qgQY/view?usp=sharing",
+            "https://drive.google.com/file/d/1fLa1C96BpAdOOM3tLumDl36jcuxdUO8I/view?usp=sharing",
+            "https://drive.google.com/file/d/1gJVc52gTxbIZT6cyQCIu9s5MbSBwgQMr/view?usp=sharing",
+            "https://drive.google.com/file/d/1gYK3qai3xu-wfZIielIxcJrPbussQtXf/view?usp=sharing",
+            "https://drive.google.com/file/d/1if9z8S1Pva_EkT1paA82OjbUeYVe7Ucu/view?usp=sharing",
+            "https://drive.google.com/file/d/1jn7ItgCKXlmZ8Ofv7EG0R8BD8P_38mw_/view?usp=sharing",
+            "https://drive.google.com/file/d/1kGHaE6RJN__oaovLWDnjH2tXHCoIuUfy/view?usp=sharing",
+            "https://drive.google.com/file/d/1kVWk6Hx4C2Hav207rwFi7EUQWSZ_WlXk/view?usp=sharing",
+            "https://drive.google.com/file/d/1kfRhDL8EkSFnNOhUMd3UdI8pahDJYW1i/view?usp=sharing",
+            "https://drive.google.com/file/d/1lMPqUg6cPNhZkxbPGkp0Leq3QPXTbah4/view?usp=sharing",
+            "https://drive.google.com/file/d/1lSA6oKM94TWlCN1QtxSTFGT2YOOyFnfC/view?usp=sharing",
+            "https://drive.google.com/file/d/1lUs_wqfJWOuDCB1oGqCBtb9HMS5u4DgR/view?usp=sharing",
+            "https://drive.google.com/file/d/1m0-M671qFUhRLlbNUQ02384XKVYj7K6p/view?usp=sharing",
+            "https://drive.google.com/file/d/1muY5aLl_n4OgjKczBgt0Tc8ofiDL2BH_/view?usp=sharing",
+            "https://drive.google.com/file/d/1omKqyadS5yvbiZREoJAgP3F2Q7fviLUE/view?usp=sharing",
+            "https://drive.google.com/file/d/1sobOd87YRkBXbZw78ru8WEl8ENMdgEQ_/view?usp=sharing",
+            "https://drive.google.com/file/d/1u6j3P494djJuLCqY842lVzq3Jx2jgWfT/view?usp=sharing",
+            "https://drive.google.com/file/d/1vRPwPkxjM1VnAYv5voKK3rBjACHhuGJX/view?usp=sharing",
+            "https://drive.google.com/file/d/1wZRszmJY7QvVVCxWf0sqU4n46wiI1D_3/view?usp=sharing",
+            "https://drive.google.com/file/d/1wnv6d0VOdo57dM3IS3srgq0EUk5YM-A4/view?usp=sharing",
+            "https://drive.google.com/file/d/1xCNG6AiQjgzPyPKThS2H8W0H_VyYWkQ8/view?usp=sharing",
+            "https://drive.google.com/file/d/1ySMCv4pLQcC4bFLuwkJcdeu8qxEA86WP/view?usp=sharing",
+            "https://drive.google.com/file/d/1z9NWdAEyMf0Acb-QbOKDv0eMC2qEMhNU/view?usp=sharing",
+            "https://drive.google.com/file/d/1zWfZ9WEZnX0b3DzABWHWfPr6dYq4yQsn/view?usp=sharing",
+
+            "https://drive.google.com/file/d/10QVGc-vPXsGkyAftuiUVEcOn7H1U7U-l/view?usp=sharing",
+            "https://drive.google.com/file/d/10gK7z-hpyIkqqAgKp5ioFUVmWXNAv5jA/view?usp=sharing",
+            "https://drive.google.com/file/d/11YEXeS-a9f3eMpvmxfgubIjVbf6NAp76/view?usp=sharing",
+            "https://drive.google.com/file/d/11dLkAl5vNHGKg-I8vvLFVw-MTMUJOPkk/view?usp=sharing",
+            "https://drive.google.com/file/d/12OrZO1s0olLXYJGr1l14egxs_pGFO4bp/view?usp=sharing",
+            "https://drive.google.com/file/d/12Y6ozgON34PciHRiDIimvZ0s5aZ_w9yb/view?usp=sharing",
+            "https://drive.google.com/file/d/13jo7u7_jShEpG0dn_tlM1gc_dCI1NG5v/view?usp=sharing",
+            "https://drive.google.com/file/d/14XhlKdNtk298QHThEENLb76PpWRexVsZ/view?usp=sharing",
+            "https://drive.google.com/file/d/15200ZDYR7BvbdrHBuAhuc3eB2wSh2Bgv/view?usp=sharing",
+            "https://drive.google.com/file/d/15JeC5hrUiOhLPLgJlLvBVfxTL2G4Dn49/view?usp=sharing",
+            "https://drive.google.com/file/d/16XfZBkH0Ap75Vug6BVCyFTktdUTry93t/view?usp=sharing",
+            "https://drive.google.com/file/d/17atDZfyTc3cidXhEaE6RGvzB0B_njDlL/view?usp=sharing",
+            "https://drive.google.com/file/d/17bTWwo2aWIIj3EnSNcCI0cyguV-FSn3j/view?usp=sharing",
+            "https://drive.google.com/file/d/18L1uEwGrvWyuPQonEx0V7W3wiM6vN5VP/view?usp=sharing",
+            "https://drive.google.com/file/d/1AVX3XLTjSRC79-JKSCyJYjvit1R3PKOB/view?usp=sharing",
+            "https://drive.google.com/file/d/1B0lMDlGleJv_FyJ3z5K9ztaAk6LnBU05/view?usp=sharing",
+            "https://drive.google.com/file/d/1B2EiH5EWrkK7JkmTgG-pPAMVzsAqiTsf/view?usp=sharing",
+            "https://drive.google.com/file/d/1B5fPAUkh3pTU3mTHLPmDsns-T5C3pPUw/view?usp=sharing",
+            "https://drive.google.com/file/d/1CSvZJfUB7SvHyj2eokz6UNgsdcKyAkmy/view?usp=sharing",
+            "https://drive.google.com/file/d/1CUaFTIaf5IX21rKXRUA7B6mkABfbRzkY/view?usp=sharing",
+            "https://drive.google.com/file/d/1EDsSbCaX6Rxb6f8HSSdCurFbEwumyZ7G/view?usp=sharing",
+            "https://drive.google.com/file/d/1EiMlxYDeZAavOfUMImxU7jfgg19P2WYK/view?usp=sharing",
+            "https://drive.google.com/file/d/1FO2uC9vBfsrozd4_5gDWhnlyfpAjOsXS/view?usp=sharing",
+            "https://drive.google.com/file/d/1FWSqyKHp0rNyKrZLfY2oFwDVorTpOY6m/view?usp=sharing",
+            "https://drive.google.com/file/d/1Fj4FdHiTKIr2k8wVv9fAWn5OEYOS-uhp/view?usp=sharing",
+            "https://drive.google.com/file/d/1GZXIGb_v0oSI86wy2Pox5KzWVP9mAJz-/view?usp=sharing",
+            "https://drive.google.com/file/d/1HS2_1JRCbEVaih1mDrWs5gmbkA8rjiR8/view?usp=sharing",
+            "https://drive.google.com/file/d/1IibgF-RDa_zLS7yQNovHYwxSy4COUL2z/view?usp=sharing",
+            "https://drive.google.com/file/d/1JI1lFx5ROGLkSn8xrRQAlHTX1GcHHo3r/view?usp=sharing",
+            "https://drive.google.com/file/d/1KR87kO7-cUOkgjFoysIT7yN7TrK3pW0X/view?usp=sharing",
+            "https://drive.google.com/file/d/1LnCK1_QJuYPSL_EinURrMD8LVbplRaPi/view?usp=sharing",
+            "https://drive.google.com/file/d/1LvL0KIi_t1lIqbZJkQs-SK9KB6QoiWRx/view?usp=sharing",
+            "https://drive.google.com/file/d/1Ma-vdhrn3rjipiZtojZ3ykFOYhVsxZk8/view?usp=sharing",
+            "https://drive.google.com/file/d/1MfXXDZSCYhoLCW3cM2ZjoiQbfghxAE3T/view?usp=sharing",
+            "https://drive.google.com/file/d/1Mjr3aUEAUCZCUdR9Sgu-5mZOJSNnyVM9/view?usp=sharing",
+            "https://drive.google.com/file/d/1MnFFkARhxZHWy8joZrEUEqjwUm8YTSWv/view?usp=sharing",
+            "https://drive.google.com/file/d/1Mv-fSYWj90wSYk24-bGi2AqcDPNk2iU5/view?usp=sharing",
+            "https://drive.google.com/file/d/1NxYrunH87cCKp3PtZuYSFhXVe_lS0Ntz/view?usp=sharing",
+            "https://drive.google.com/file/d/1OnZheLBCsiAJgTs9AUB7gvnHDZ-3zhdW/view?usp=sharing",
+            "https://drive.google.com/file/d/1P8NqEg9om8o5v4z1BXwovJO-U_J64Va0/view?usp=sharing",
+            "https://drive.google.com/file/d/1Q5_XfDPacqIlmdbS7fIk3bQwztyCl_BU/view?usp=sharing",
+            "https://drive.google.com/file/d/1QS2SRUtzyw_vySSf_RqJ_1vAi_Qwo7g1/view?usp=sharing",
+            "https://drive.google.com/file/d/1RE9lYOFnlCoNE_PdCAHAI8WMHjZKDsdn/view?usp=sharing",
+            "https://drive.google.com/file/d/1RLrteF3De59bV72dKSWS5rwPuRTCUI87/view?usp=sharing",
+            "https://drive.google.com/file/d/1SnAm2XnGIEsFOVjCn9rbE5gYox-D_DM0/view?usp=sharing",
+            "https://drive.google.com/file/d/1T8Sll3xPrJV8nFUYVvjJcXRSSrom4t7b/view?usp=sharing",
+            "https://drive.google.com/file/d/1UEcp786ynHJJgWees6WKZtiytazFIGzf/view?usp=sharing",
+            "https://drive.google.com/file/d/1V2r-xKLGCsoqgWoJ9xnOWxsVGLXJmMjL/view?usp=sharing",
+            "https://drive.google.com/file/d/1VSRsxAe2a-YHS_lfaNjpFhtJN9A0jnQR/view?usp=sharing",
+            "https://drive.google.com/file/d/1WAEpLf6W6xmAn1QlMPwEh6ARHju59elt/view?usp=sharing",
+            "https://drive.google.com/file/d/1WXyZP8vxAWeoMLBzQDIUch3igbhBgBZ1/view?usp=sharing",
+            "https://drive.google.com/file/d/1Wf4D-yr0XCafG5S3kcd6Ux1BLzxQMgB5/view?usp=sharing",
+            "https://drive.google.com/file/d/1XIK-e7uj6akRdMQHm0KanxIf6mV4pIuI/view?usp=sharing",
+            "https://drive.google.com/file/d/1XiEd7SepgDb_FtMH-vchV_FvfoTyCa9R/view?usp=sharing",
+            "https://drive.google.com/file/d/1YSdNId7iFoINJLUb8BMPiQBjAssC8T1c/view?usp=sharing",
+            "https://drive.google.com/file/d/1YTSwKBOflyds28wr4V9WQdUHtWCitpFX/view?usp=sharing",
+            "https://drive.google.com/file/d/1YYvoTjL0QnY-7DZOswA95XwU3u_5Hjcz/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZAGzpXhavmflFeQtNTiI-LElACM9NN41/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZGJ6EvzHyKi-DbJEnzn8VXIt62As7omS/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZJ5wDJmfmvo8zOrNUfQMmNVCA68PIQoV/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZnP0i7fpArLW0MoBUJSIcOx2R26CWGvW/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZxD3xAKeYzB3XMvG6j-gnYdR25c84Bsh/view?usp=sharing",
+            "https://drive.google.com/file/d/1_2jHKyBTlL-22ozTQD6pi3Hsao2oJvqr/view?usp=sharing",
+            "https://drive.google.com/file/d/1_3B7-nCqnDaR5Y1MSQ-YrbE9LB7Z9oUa/view?usp=sharing",
+            "https://drive.google.com/file/d/1_sxclSODiWbh3LhFb5cNF6QoKMwf9Unk/view?usp=sharing",
+            "https://drive.google.com/file/d/1aKrs9C3zPqfnv5Xy8vfQh4UZ5XerPmWs/view?usp=sharing",
+            "https://drive.google.com/file/d/1aN-fuhrjkJyQvlnhsU45N2dk26C4lpZU/view?usp=sharing",
+            "https://drive.google.com/file/d/1bErCWqyxp7Ex1wU3FROEAvauL6T78eTh/view?usp=sharing",
+            "https://drive.google.com/file/d/1c1SI5pxGs_7kjanbDr-55kHl0lfQa7xD/view?usp=sharing",
+            "https://drive.google.com/file/d/1dzBXX0SiiaHj7SnTCQEYjPwyXtAlBS04/view?usp=sharing",
+            "https://drive.google.com/file/d/1ekIIEKN8m1cxlothuLtSDv2N7NICsDbk/view?usp=sharing",
+            "https://drive.google.com/file/d/1f1HpMdzt9AJG8zKJJ1NpNuYkjkt8oHT-/view?usp=sharing",
+            "https://drive.google.com/file/d/1gOYoejYvn5pw0oMG6J3mbB5-f_F1mRHb/view?usp=sharing",
+            "https://drive.google.com/file/d/1kPl0AfzmhYXIGRl5ju_bPgvj5NxaSeHY/view?usp=sharing",
+            "https://drive.google.com/file/d/1l6v8fw94Rb-vbUxiDoKTTcYRHYfJeAtu/view?usp=sharing",
+            "https://drive.google.com/file/d/1lBhOaWGek0NjE5jUo1r0FrES_VLiBY_5/view?usp=sharing",
+            "https://drive.google.com/file/d/1lJx6q_H0z46nP5YMZwH-KgV_tDgonbS9/view?usp=sharing",
+            "https://drive.google.com/file/d/1m1PH_A5mnE9znpgyZf3EU1Gl5HcM5Qud/view?usp=sharing",
+            "https://drive.google.com/file/d/1mKSn6W1cUYsZ-QlWLKDZjzndpmr5QI_j/view?usp=sharing",
+            "https://drive.google.com/file/d/1movCuJr_78y6NuQnLmeQPX_ABchNpknI/view?usp=sharing",
+            "https://drive.google.com/file/d/1mr8rADIcCZqiUNIuxYUVxeEvGjuUCJAe/view?usp=sharing",
+            "https://drive.google.com/file/d/1pNVno7fWQBdA0xvKZnQV8at-IxUZp935/view?usp=sharing",
+            "https://drive.google.com/file/d/1pqnDdLhM9jKuhhd7UJx5omOhtQdqavyg/view?usp=sharing",
+            "https://drive.google.com/file/d/1r7Jnj4FULOQ3Dzbapx6YMIIZi_6qYh5g/view?usp=sharing",
+            "https://drive.google.com/file/d/1s2SR8DemkUrZ8g5hHMP5bavnodxD5hDI/view?usp=sharing",
+            "https://drive.google.com/file/d/1sQvXaIIZGOsmG0pKZUXQl0OGMzBiCnyo/view?usp=sharing",
+            "https://drive.google.com/file/d/1sybpTbF6fsluhTES31lVUHM27ZAIXWWl/view?usp=sharing",
+            "https://drive.google.com/file/d/1tdeyZGRWfj-z9Vs6KantS97hLAg1XdRa/view?usp=sharing",
+            "https://drive.google.com/file/d/1u157BnWLD_nvv09zm24VJfBPN_K2U9Zs/view?usp=sharing",
+            "https://drive.google.com/file/d/1uWTL9tu5UfgktXsEZrrtyPBjAfsWhbBt/view?usp=sharing",
+            "https://drive.google.com/file/d/1v8pFqxjc3UxUMlXzcx8iKaEkjF6CBQHd/view?usp=sharing",
+            "https://drive.google.com/file/d/1vR__R3XpncxTtPpF0_q9CeDJZZHZoBWL/view?usp=sharing",
+            "https://drive.google.com/file/d/1wH5aKDRCnLRz94pnWUhlkgk0tR4AP7_4/view?usp=sharing",
+            "https://drive.google.com/file/d/1wSluiS-0nt2mXF8zvtOJBM9NFerC1UA1/view?usp=sharing",
+            "https://drive.google.com/file/d/1wsJDLCLZlx0_QUUFzWrTAgINV4X8RPfs/view?usp=sharing",
+            "https://drive.google.com/file/d/1x6fcnUjUr8CiftkgWkA-TNtDPqVruckX/view?usp=sharing",
+            "https://drive.google.com/file/d/1xTu7GSmBQBEJ7VY9PzCh6tdV_wpFgN-r/view?usp=sharing",
+            "https://drive.google.com/file/d/1yeU_MiJlIyJa83sCwqZZO5bVydPK9HW9/view?usp=sharing",
+            "https://drive.google.com/file/d/1z-4T--IhmGmxobSmmAeeJ0W8oKJUKC81/view?usp=sharing",
+            "https://drive.google.com/file/d/1zrIX66EFkSAFHgrHVDwQJt09RYZoD_Pw/view?usp=sharing",
+
+            "https://drive.google.com/file/d/1-tLw0V1OQnaZxzdAQhRl1T1ApXnJ-GYi/view?usp=sharing",
+            "https://drive.google.com/file/d/1095CvDqI9jv0f-_jvHcSIu4kIzknGFZb/view?usp=sharing",
+            "https://drive.google.com/file/d/10gWGHVX-oLa339L9T8aDdE7GldzGZoAb/view?usp=sharing",
+            "https://drive.google.com/file/d/12gShAnRQOihpYOH8GTozQwtMaBFNTuDk/view?usp=sharing",
+            "https://drive.google.com/file/d/12i4HBXx_nEFK5e6uByWrKc90WW5VaFlw/view?usp=sharing",
+            "https://drive.google.com/file/d/13EisBEnzLK4-J86gCanhAdgFG9_DBtWH/view?usp=sharing",
+            "https://drive.google.com/file/d/13H6Rvsvl6iOI9adzqV1xPV5beKJUdvuD/view?usp=sharing",
+            "https://drive.google.com/file/d/13_AMm8QJw1el4qjy-sSkwczyfVHEg9yG/view?usp=sharing",
+            "https://drive.google.com/file/d/14YvcmWv4NkTkoAQo90cdNOVoBmW-scAB/view?usp=sharing",
+            "https://drive.google.com/file/d/155hqjybSVPcHFYFNw1kYuFA0dfEqKzU0/view?usp=sharing",
+            "https://drive.google.com/file/d/15ePpoOBgTlHqs5fSXMqHcuQ3NM0-qAsD/view?usp=sharing",
+            "https://drive.google.com/file/d/16LdEFFt4hvj_kUH-ewgh_ZcY2yaRBpQW/view?usp=sharing",
+            "https://drive.google.com/file/d/16YP4-A3DMOEFTp2__bD3ZtEc9QEPqQ-A/view?usp=sharing",
+            "https://drive.google.com/file/d/17EA_Cocwp0vB4panxMneySSlKGc_LVmK/view?usp=sharing",
+            "https://drive.google.com/file/d/17iFDDBvjnvdmG0W4VkF2qysCn9yhuj5f/view?usp=sharing",
+            "https://drive.google.com/file/d/18Gp_67QJt1EEIlpSAHOl5oa4IfWWckUM/view?usp=sharing",
+            "https://drive.google.com/file/d/192uVIBpU2HTHt5jIhU74X--UABnzjQmC/view?usp=sharing",
+            "https://drive.google.com/file/d/19btR4IvqR7U0xKy5nfahykUzAkWmUK2a/view?usp=sharing",
+            "https://drive.google.com/file/d/19fCGDncDqHqmBPYdCDeeKYr9uPHM1jmf/view?usp=sharing",
+            "https://drive.google.com/file/d/19p2fUN7DgP0qtGb8MkjdF6ZREVuKkTe6/view?usp=sharing",
+            "https://drive.google.com/file/d/1A3Ehu0GeehhQU_2CZDnHxUuDqJ9AeMFF/view?usp=sharing",
+            "https://drive.google.com/file/d/1Az7t-dn4xKiPmClQFWqQ2yqH8FLExNvm/view?usp=sharing",
+            "https://drive.google.com/file/d/1BLe6wtJSByQqt20fgJ3XnEdyJSxcCrE0/view?usp=sharing",
+            "https://drive.google.com/file/d/1BzK3pDsvXryknJtafaitJs_W_577slQG/view?usp=sharing",
+            "https://drive.google.com/file/d/1CNKhCiDWpx-mkWD0TgeS3N_MJLKtayxk/view?usp=sharing",
+            "https://drive.google.com/file/d/1CfzyMQBN4sIzlbqM7VjRYkgiO5kdTMHu/view?usp=sharing",
+            "https://drive.google.com/file/d/1DjyZBDJC67hcMPsUm8w_7mVks4CyuRt_/view?usp=sharing",
+            "https://drive.google.com/file/d/1EwgoyM9_YOYK9zvPl6QEDY_zXC0YQoPf/view?usp=sharing",
+            "https://drive.google.com/file/d/1GGw-N-EHonMchD0c6grtgcskgkCd6mVb/view?usp=sharing",
+            "https://drive.google.com/file/d/1HCfyZBx_A1Xm-a6_MKtPFSFlCXXvHA3K/view?usp=sharing",
+            "https://drive.google.com/file/d/1Htv0-Yk11JTtf1Tbv3bqJMlxn69v1hMr/view?usp=sharing",
+            "https://drive.google.com/file/d/1I9kidN2_A5jPFXTptehajVAanriatk3C/view?usp=sharing",
+            "https://drive.google.com/file/d/1JEbRPQXPGDVEHYaJPkHO0I4zj4lGyTl6/view?usp=sharing",
+            "https://drive.google.com/file/d/1JjZ5JxyUaHl0t2mRYPZ4ZOD2x2DQ-voD/view?usp=sharing",
+            "https://drive.google.com/file/d/1KIgEwOM6lFIwedDzrEvkSI47w_ELjiKz/view?usp=sharing",
+            "https://drive.google.com/file/d/1L7OWKCa2IBivD4HMOSWMA5V1WwcBg3rx/view?usp=sharing",
+            "https://drive.google.com/file/d/1NON4bGJy7dk1PWGSKKgKbC1Iut1rfGNr/view?usp=sharing",
+            "https://drive.google.com/file/d/1Nt_K7BdIeqZzkC3XExHvAgIEG8H_G1R3/view?usp=sharing",
+            "https://drive.google.com/file/d/1OTckzTTMOQLbMkJfIW6WfGdbCX46rKwr/view?usp=sharing",
+            "https://drive.google.com/file/d/1OZhqJ7l9ukrux_ET3q-A9bE2qPH0YDkV/view?usp=sharing",
+            "https://drive.google.com/file/d/1Oqyl_1lCRo0D_EdE1QYIFs9n5RW7oxm_/view?usp=sharing",
+            "https://drive.google.com/file/d/1Qsveh1qMaMcU9UMC6P4RwTBT9uoCNtCI/view?usp=sharing",
+            "https://drive.google.com/file/d/1Qx-bnGLHelYh2VXMIEnbU6pakGlRQMsz/view?usp=sharing",
+            "https://drive.google.com/file/d/1QyPyMp5hl_-AsCxV8_UdsYOeZe0uZvRF/view?usp=sharing",
+            "https://drive.google.com/file/d/1R0BfvOlTng1UyZIjSGHykyRa9G5zA_-3/view?usp=sharing",
+            "https://drive.google.com/file/d/1Rnc1wgtNX0HKC-7262cxicI5OXjk85gl/view?usp=sharing",
+            "https://drive.google.com/file/d/1Rts4I5BA-dFkHrPlZCo2nc6cE1SIGKRz/view?usp=sharing",
+            "https://drive.google.com/file/d/1TVNIdm2LioWQ6fKS5i-HTxtPtuHCHOgj/view?usp=sharing",
+            "https://drive.google.com/file/d/1TYS8COGlQDS3q6pokJcrGgBn8uupg-Q0/view?usp=sharing",
+            "https://drive.google.com/file/d/1VVWQH_eu7ZfHWDr2Z3xyP92JeuXt7Yat/view?usp=sharing",
+            "https://drive.google.com/file/d/1VZ2HWJPOePfe8wkHdOB_tHC51eMnkJ0X/view?usp=sharing",
+            "https://drive.google.com/file/d/1VbHDWiSQsXsDNIdXfkiaiqwL2qlpttFe/view?usp=sharing",
+            "https://drive.google.com/file/d/1W7gI0WZOEeN8vzx4mfERm-7SlxfMqVsT/view?usp=sharing",
+            "https://drive.google.com/file/d/1WEwirAqUSjQoGLbEjV-H9slIwXpPqmqS/view?usp=sharing",
+            "https://drive.google.com/file/d/1WMlvNKz9K2Fpc59KwGMo4DpKQR7e7cO1/view?usp=sharing",
+            "https://drive.google.com/file/d/1XJ3DSnsflQoLdGs0WRXbqLS8Tx8tVz81/view?usp=sharing",
+            "https://drive.google.com/file/d/1YmBflbLwVfDXjEdsL_I9hbXUZJoVchOL/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZOGtYKfzxZLHuk5IE79vkqBbncq7iZ_d/view?usp=sharing",
+            "https://drive.google.com/file/d/1ZPB7cz8w5zTjSJ9jTGssdLynqb7Gtkn1/view?usp=sharing",
+            "https://drive.google.com/file/d/1_JC7ODTJucMpPb9Dg8cYUnrbnGlAyW3w/view?usp=sharing",
+            "https://drive.google.com/file/d/1__QlTIX9G6VYw9kCSO5T5HoDEcip9gU8/view?usp=sharing",
+            "https://drive.google.com/file/d/1a9wubrLE06E4WKTm7WDZUHG1zUSub2X7/view?usp=sharing",
+            "https://drive.google.com/file/d/1bPLpBKVY1I0LGassJmfm3z3u5m2v9xft/view?usp=sharing",
+            "https://drive.google.com/file/d/1c_dHRHsh8fGpeXeFpOrJBhQJ8rNfImsY/view?usp=sharing",
+            "https://drive.google.com/file/d/1dBifxZdZi_c6v9Fifh04lNmGHFxAgdnf/view?usp=sharing",
+            "https://drive.google.com/file/d/1dIu6HOktPucaapTPXhlftIlzgL6-rpk-/view?usp=sharing",
+            "https://drive.google.com/file/d/1dPTb5f1FHUk5SofBtnru7Gsx9PqMwMry/view?usp=sharing",
+            "https://drive.google.com/file/d/1dkkPNTBhyp8UK8_szVO16GsS-ZAI9tBp/view?usp=sharing",
+            "https://drive.google.com/file/d/1eoh08cVVuuonDzcBxF_hlC6zVL2-736Z/view?usp=sharing",
+            "https://drive.google.com/file/d/1eouko4YXZeDw9SPz8W81i85VtrNpQOhT/view?usp=sharing",
+            "https://drive.google.com/file/d/1fQwiql9hTb6ZCFlYVL3hezvVh1kc0w_-/view?usp=sharing",
+            "https://drive.google.com/file/d/1f_ckTvr16iGgyWlhkbPlXEb1Kd13clxp/view?usp=sharing",
+            "https://drive.google.com/file/d/1fd0HPLgPPIQPCrJMRh0h8tTFnDIeagp2/view?usp=sharing",
+            "https://drive.google.com/file/d/1gTge1N06hDxwjv1tb3OGV4xggOLhe9rx/view?usp=sharing",
+            "https://drive.google.com/file/d/1gaZN3EGuV_p2ezzy3J2nRxIjGYUr4rrp/view?usp=sharing",
+            "https://drive.google.com/file/d/1iNy50qzC8zftXNbcenpZ48KdgnTYcFao/view?usp=sharing",
+            "https://drive.google.com/file/d/1iysLsZsPsSpJRL47lAlwnqG8X96bHteP/view?usp=sharing",
+            "https://drive.google.com/file/d/1jfjGmJoy1KuR_PE-Auy_qELt9wbNQ3SS/view?usp=sharing",
+            "https://drive.google.com/file/d/1k43dkyTBokUdfZn7pcTd3O_LOXHW7bcw/view?usp=sharing",
+            "https://drive.google.com/file/d/1ocBDwzEeVcDfdSrK9S6I6jdWcLZ09vVX/view?usp=sharing",
+            "https://drive.google.com/file/d/1owSr3g4-8xAnT-03ikENGYVT50bzTtnN/view?usp=sharing",
+            "https://drive.google.com/file/d/1p4am95gG-mTXsRhvhAr6s_tbTL0syGEs/view?usp=sharing",
+            "https://drive.google.com/file/d/1qp5irf0vU5xzOYV7TknPpYrZKzmCAG6f/view?usp=sharing",
+            "https://drive.google.com/file/d/1rdse4eralupT7Gb0IYQovAvBCwvqz5XF/view?usp=sharing",
+            "https://drive.google.com/file/d/1s07CzsN_TpxluS6tqmfeTyp8_-ArCgX0/view?usp=sharing",
+            "https://drive.google.com/file/d/1sHth5aXkieOBaG3Pa9l8_jAUU2qeHuWb/view?usp=sharing",
+            "https://drive.google.com/file/d/1sd928U-0AGTMpWqgqJr835tMIzBhGAkU/view?usp=sharing",
+            "https://drive.google.com/file/d/1tADP43lNApucI1xKVXffTtT9eI7kT_Ih/view?usp=sharing",
+            "https://drive.google.com/file/d/1u5h3Zj6U434S8v7WQ_btshz45NmvGFHB/view?usp=sharing",
+            "https://drive.google.com/file/d/1uGlUiWbp-GcuucdxMz1Fi6daR1bx1vzC/view?usp=sharing",
+            "https://drive.google.com/file/d/1ujp7diiklAYSLBEv_TSRZ1ZHAa6rqSV4/view?usp=sharing",
+            "https://drive.google.com/file/d/1v1V54paadfr1oWFbSdXMvAjpQB75af55/view?usp=sharing",
+            "https://drive.google.com/file/d/1vx6SgcbH7yjX4B9O0hHPIcplBtzZAclO/view?usp=sharing",
+            "https://drive.google.com/file/d/1wLKZBADfUuuNYt3WVZXfnCJNWlwZ4d0f/view?usp=sharing",
+            "https://drive.google.com/file/d/1wXlPZTqLpXrXAK58QIS0LMcCyLbmpZyT/view?usp=sharing",
+            "https://drive.google.com/file/d/1wp5yuniWn8xJ35XpYjSAK-nhk7zzH6Av/view?usp=sharing",
+            "https://drive.google.com/file/d/1wr2649WEuUM0l-ldULgeAAwmZJJh1Oo0/view?usp=sharing",
+            "https://drive.google.com/file/d/1zBps59B5B2FXAmzIpo5LOlV2v_5XDtQo/view?usp=sharing",
+            "https://drive.google.com/file/d/1zFzqpK1p1Kq7JzuhLcj3j-e0n3pnSkH1/view?usp=sharing",
+            "https://drive.google.com/file/d/1zJRzzrkWN3YpqgxuweMur7BcG8uCWq_t/view?usp=sharing"
+        ];
+
+        // Mapear URLs do Google Drive para URLs diretas
+        const directDriveImageUrls = googleDriveUrls.map(url => getDirectDriveImageUrl(url));
+
+        // Array de objetos com nome e, se disponível, URL da imagem
+        const positionsData = [
+            { name: "Freira", imageUrl: directDriveImageUrls[0] || "" },
+            { name: "Tigre", imageUrl: directDriveImageUrls[1] || "" },
+            { name: "Conchinha", imageUrl: directDriveImageUrls[2] || "" },
+            { name: "Soldado", imageUrl: directDriveImageUrls[3] || "" },
+            { name: "Cleopatra", imageUrl: directDriveImageUrls[4] || "" },
+            { name: "Idyll", imageUrl: directDriveImageUrls[5] || "" },
+            { name: "Chama", imageUrl: directDriveImageUrls[6] || "" },
+            { name: "Câncer", imageUrl: directDriveImageUrls[7] || "" },
+            { name: "Gancho", imageUrl: directDriveImageUrls[8] || "" },
+            { name: "Extase", imageUrl: directDriveImageUrls[9] || "" },
+            { name: "Clip", imageUrl: directDriveImageUrls[10] || "" },
+            { name: "Escavações", imageUrl: directDriveImageUrls[11] || "" },
+            { name: "Harmonia", imageUrl: directDriveImageUrls[12] || "" },
+            { name: "Ape", imageUrl: directDriveImageUrls[13] || "" },
+            { name: "Cavaleiro", imageUrl: directDriveImageUrls[14] || "" },
+            { name: "Encadernação", imageUrl: directDriveImageUrls[15] || "" },
+            { name: "Escravo do sexo", imageUrl: directDriveImageUrls[16] || "" },
+            { name: "Gorge", imageUrl: directDriveImageUrls[17] || "" },
+            { name: "Livro", imageUrl: directDriveImageUrls[18] || "" },
+            { name: "Estilo indiano", imageUrl: directDriveImageUrls[19] || "" },
+            { name: "Gota de neve", imageUrl: directDriveImageUrls[20] || "" },
+            { name: "Parede", imageUrl: directDriveImageUrls[21] || "" },
+            { name: "Brotos", imageUrl: directDriveImageUrls[22] || "" },
+            { name: "Cachoeira", imageUrl: directDriveImageUrls[23] || "" },
+            { name: "Basset Hound", imageUrl: directDriveImageUrls[24] || "" },
+            { name: "Tornado", imageUrl: directDriveImageUrls[25] || "" },
+            { name: "Balançar", imageUrl: directDriveImageUrls[26] || "" },
+            { name: "Tulipa", imageUrl: directDriveImageUrls[27] || "" },
+            { name: "Colher", imageUrl: directDriveImageUrls[28] || "" },
+            { name: "Sussurro", imageUrl: directDriveImageUrls[29] || "" },
+            { name: "Inquisidor", imageUrl: directDriveImageUrls[30] || "" },
+            { name: "Círculo", imageUrl: directDriveImageUrls[31] || "" },
+            { name: "Disco", imageUrl: directDriveImageUrls[32] || "" },
+            { name: "Barco", imageUrl: directDriveImageUrls[33] || "" },
+            { name: "Vela", imageUrl: directDriveImageUrls[34] || "" },
+            { name: "Straddle", imageUrl: directDriveImageUrls[35] || "" },
+            { name: "Aquarius", imageUrl: directDriveImageUrls[36] || "" },
+            { name: "Claquete", imageUrl: directDriveImageUrls[37] || "" },
+            { name: "Gato", imageUrl: directDriveImageUrls[38] || "" },
+            { name: "Sereia", imageUrl: directDriveImageUrls[39] || "" },
+            { name: "Ônibus", imageUrl: directDriveImageUrls[40] || "" },
+            { name: "Iris", imageUrl: directDriveImageUrls[41] || "" },
+            { name: "Bancada", imageUrl: directDriveImageUrls[42] || "" },
+            { name: "Dejavu", imageUrl: directDriveImageUrls[43] || "" },
+            { name: "Cinto", imageUrl: directDriveImageUrls[44] || "" },
+            { name: "Descarga", imageUrl: directDriveImageUrls[45] || "" },
+            { name: "Fruta Proibida", imageUrl: directDriveImageUrls[46] || "" },
+            { name: "Escorpião", imageUrl: directDriveImageUrls[47] || "" },
+            { name: "Olimpus", imageUrl: directDriveImageUrls[48] || "" },
+            { name: "Profundidade", imageUrl: directDriveImageUrls[49] || "" },
+            { name: "Vênus", imageUrl: directDriveImageUrls[50] || "" },
+            { name: "Fechadura", imageUrl: directDriveImageUrls[51] || "" },
+            { name: "Avalanche", imageUrl: directDriveImageUrls[52] || "" },
+            { name: "Rodeo", imageUrl: directDriveImageUrls[53] || "" },
+            { name: "Berço", imageUrl: directDriveImageUrls[54] || "" },
+            { name: "Caranguejo", imageUrl: directDriveImageUrls[55] || "" },
+            { name: "Borboleta", imageUrl: directDriveImageUrls[56] || "" },
+            { name: "Sinfonia", imageUrl: directDriveImageUrls[57] || "" },
+            { name: "Concha", imageUrl: directDriveImageUrls[58] || "" },
+            { name: "Yin-Yang", imageUrl: directDriveImageUrls[59] || "" },
+            { name: "Exercício", imageUrl: directDriveImageUrls[60] || "" },
+            { name: "Cão preguiçoso", imageUrl: directDriveImageUrls[61] || "" },
+            { name: "Sereia", imageUrl: directDriveImageUrls[62] || "" },
+            { name: "Bud", imageUrl: directDriveImageUrls[63] || "" },
+            { name: "Bulldog", imageUrl: directDriveImageUrls[64] || "" },
+            { name: "Missionário", imageUrl: directDriveImageUrls[65] || "" },
+            { name: "Rose", imageUrl: directDriveImageUrls[66] || "" },
+            { name: "Estojo", imageUrl: directDriveImageUrls[67] || "" },
+            { name: "Tango", imageUrl: directDriveImageUrls[68] || "" },
+            { name: "Croissant", imageUrl: directDriveImageUrls[69] || "" },
+            { name: "Mastro", imageUrl: directDriveImageUrls[70] || "" },
+            { name: "Orador", imageUrl: directDriveImageUrls[71] || "" },
+            { name: "Vitória", imageUrl: directDriveImageUrls[72] || "" },
+            { name: "Caranguejo", imageUrl: directDriveImageUrls[73] || "" },
+            { name: "Borboleta", imageUrl: directDriveImageUrls[74] || "" },
+            { name: "Inclinação", imageUrl: directDriveImageUrls[75] || "" },
+            { name: "Tartaruga", imageUrl: directDriveImageUrls[76] || "" },
+            { name: "Espalhe a Águia", imageUrl: directDriveImageUrls[77] || "" },
+            { name: "Tiara", imageUrl: directDriveImageUrls[78] || "" },
+            { name: "Precipício", imageUrl: directDriveImageUrls[79] || "" },
+            { name: "Creme brulee", imageUrl: directDriveImageUrls[80] || "" },
+            { name: "Marsh-mallow", imageUrl: directDriveImageUrls[81] || "" },
+            { name: "Toureiro", imageUrl: directDriveImageUrls[82] || "" },
+            { name: "Hucklebuck", imageUrl: directDriveImageUrls[83] || "" },
+            { name: "Barbell", imageUrl: directDriveImageUrls[84] || "" },
+            { name: "Montanha Mágica", imageUrl: directDriveImageUrls[85] || "" },
+            { name: "Sagitário", imageUrl: directDriveImageUrls[86] || "" },
+            { name: "Afrodite", imageUrl: directDriveImageUrls[87] || "" },
+            { name: "Caixão", imageUrl: directDriveImageUrls[88] || "" },
+            { name: "Submisso", imageUrl: directDriveImageUrls[89] || "" },
+            { name: "Queda", imageUrl: directDriveImageUrls[90] || "" },
+            { name: "She-wolf", imageUrl: directDriveImageUrls[91] || "" },
+            { name: "Cachorrinho", imageUrl: directDriveImageUrls[92] || "" },
+            { name: "Arco-íris", imageUrl: directDriveImageUrls[93] || "" },
+            { name: "Cowgirl asiática", imageUrl: directDriveImageUrls[94] || "" },
+            { name: "Estrela do mar", imageUrl: directDriveImageUrls[95] || "" },
+            { name: "Sede", imageUrl: directDriveImageUrls[96] || "" },
+            { name: "Prisioneira fêmea", imageUrl: directDriveImageUrls[97] || "" },
+            { name: "Deusa", imageUrl: directDriveImageUrls[98] || "" },
+            { name: "Anfíbio", imageUrl: directDriveImageUrls[99] || "" },
+            { name: "Camponesa", imageUrl: directDriveImageUrls[100] || "" },
+            { name: "Simples", imageUrl: directDriveImageUrls[101] || "" },
+            { name: "Bailarina", imageUrl: directDriveImageUrls[102] || "" },
+            { name: "Polvo", imageUrl: directDriveImageUrls[103] || "" },
+            { name: "Lap Dance", imageUrl: directDriveImageUrls[104] || "" },
+            { name: "Acrobat", imageUrl: directDriveImageUrls[105] || "" },
+            { name: "Candelabro Italiano", imageUrl: directDriveImageUrls[106] || "" },
+            { name: "Beco", imageUrl: directDriveImageUrls[107] || "" },
+            { name: "Clip", imageUrl: directDriveImageUrls[108] || "" },
+            { name: "Mirage", imageUrl: directDriveImageUrls[109] || "" },
+            { name: "Apagador", imageUrl: directDriveImageUrls[110] || "" },
+            { name: "Apontador", imageUrl: directDriveImageUrls[111] || "" },
+            { name: "Aquarius", imageUrl: directDriveImageUrls[112] || "" },
+            { name: "Barberry", imageUrl: directDriveImageUrls[113] || "" },
+            { name: "Super-Homem", imageUrl: directDriveImageUrls[114] || "" },
+            { name: "Pretzel", imageUrl: directDriveImageUrls[115] || "" },
+            { name: "Сavaleiro invertido", imageUrl: directDriveImageUrls[116] || "" },
+            { name: "Bigorna", imageUrl: directDriveImageUrls[117] || "" },
+            { name: "Cadeira", imageUrl: directDriveImageUrls[118] || "" },
+            { name: "Cavalgada", imageUrl: directDriveImageUrls[119] || "" },
+            { name: "Joystick", imageUrl: directDriveImageUrls[120] || "" },
+            { name: "Horizon", imageUrl: directDriveImageUrls[121] || "" },
+            { name: "Tiramisu", imageUrl: directDriveImageUrls[122] || "" },
+            { name: "Golden Gate", imageUrl: directDriveImageUrls[123] || "" },
+            { name: "Caliper", imageUrl: directDriveImageUrls[124] || "" },
+            { name: "Escorpião", imageUrl: directDriveImageUrls[125] || "" },
+            { name: "Golfinho", imageUrl: directDriveImageUrls[126] || "" },
+            { name: "Cesta", imageUrl: directDriveImageUrls[127] || "" },
+            { name: "Orando Louva-a-Deus", imageUrl: directDriveImageUrls[128] || "" },
+            { name: "Flash", imageUrl: directDriveImageUrls[129] || "" },
+            { name: "Líbido", imageUrl: directDriveImageUrls[130] || "" },
+            { name: "Lata de irrigação", imageUrl: directDriveImageUrls[131] || "" },
+            { name: "Acordeão", imageUrl: directDriveImageUrls[132] || "" },
+            { name: "Lâmina", imageUrl: directDriveImageUrls[133] || "" },
+            { name: "Caracol", imageUrl: directDriveImageUrls[134] || "" },
+            { name: "Brilhante", imageUrl: directDriveImageUrls[135] || "" },
+            { name: "Serra do mar", imageUrl: directDriveImageUrls[136] || "" },
+            { name: "Flatiron", imageUrl: directDriveImageUrls[137] || "" },
+            { name: "Narciso", imageUrl: directDriveImageUrls[138] || "" },
+            { name: "Diamante", imageUrl: directDriveImageUrls[139] || "" },
+            { name: "Chave de fenda", imageUrl: directDriveImageUrls[140] || "" },
+            { name: "Liana", imageUrl: directDriveImageUrls[141] || "" },
+            { name: "Cavaleiro", imageUrl: directDriveImageUrls[142] || "" },
+            { name: "Juramento", imageUrl: directDriveImageUrls[143] || "" },
+            { name: "Hero", imageUrl: directDriveImageUrls[144] || "" },
+            { name: "Sorvete", imageUrl: directDriveImageUrls[145] || "" },
+            { name: "Bruto", imageUrl: directDriveImageUrls[146] || "" },
+            { name: "Para trás Cowgirl", imageUrl: directDriveImageUrls[147] || "" },
+            { name: "Aranha", imageUrl: directDriveImageUrls[148] || "" },
+            { name: "Tamer", imageUrl: directDriveImageUrls[149] || "" },
+            { name: "Pingente", imageUrl: directDriveImageUrls[150] || "" },
+            { name: "Esfinge", imageUrl: directDriveImageUrls[151] || "" },
+            { name: "Reflexão", imageUrl: directDriveImageUrls[152] || "" },
+            { name: "Leo", imageUrl: directDriveImageUrls[153] || "" },
+            { name: "Choupo", imageUrl: directDriveImageUrls[154] || "" },
+            { name: "Harpa", imageUrl: directDriveImageUrls[155] || "" },
+            { name: "Ferro", imageUrl: directDriveImageUrls[156] || "" },
+            { name: "Ultrapassar", imageUrl: directDriveImageUrls[157] || "" },
+            { name: "Áries", imageUrl: directDriveImageUrls[158] || "" },
+            { name: "Arco", imageUrl: directDriveImageUrls[159] || "" },
+            { name: "Marmelada", imageUrl: directDriveImageUrls[160] || "" },
+            "https://drive.google.com/file/d/161-Halloween Mexicano/view?usp=sharing", // Adjusted for proper URL format for now, assuming this was a typo
+            { name: "Valedictorian", imageUrl: directDriveImageUrls[162] || "" },
+            { name: "Cobra", imageUrl: directDriveImageUrls[163] || "" },
+            { name: "Água-viva", imageUrl: directDriveImageUrls[164] || "" },
+            { name: "prancha de surf", imageUrl: directDriveImageUrls[165] || "" },
+            { name: "Colina", imageUrl: directDriveImageUrls[166] || "" },
+            { name: "Arco", imageUrl: directDriveImageUrls[167] || "" },
+            { name: "Sapo", imageUrl: directDriveImageUrls[168] || "" },
+            { name: "Frango assado", imageUrl: directDriveImageUrls[169] || "" },
+            { name: "Juro", imageUrl: directDriveImageUrls[170] || "" },
+            { name: "Amazonas", imageUrl: directDriveImageUrls[171] || "" },
+            { name: "Vidro", imageUrl: directDriveImageUrls[172] || "" },
+            { name: "Pirata irritado", imageUrl: directDriveImageUrls[173] || "" },
+            { name: "Trem", imageUrl: directDriveImageUrls[174] || "" },
+            { name: "Pisces", imageUrl: directDriveImageUrls[175] || "" },
+            { name: "Gêmeos", imageUrl: directDriveImageUrls[176] || "" },
+            { name: "Jockey", imageUrl: directDriveImageUrls[177] || "" },
+            { name: "Tronco", imageUrl: directDriveImageUrls[178] || "" },
+            { name: "Arco", imageUrl: directDriveImageUrls[179] || "" },
+            { name: "Lua-de-mel", imageUrl: directDriveImageUrls[180] || "" },
+            { name: "Twix", imageUrl: directDriveImageUrls[181] || "" },
+            { name: "Cavalgada invertida", imageUrl: directDriveImageUrls[182] || "" },
+            { name: "Bola", imageUrl: directDriveImageUrls[183] || "" },
+            { name: "Plaid", imageUrl: directDriveImageUrls[184] || "" },
+            { name: "Batman", imageUrl: directDriveImageUrls[185] || "" },
+            { name: "Emmanuel", imageUrl: directDriveImageUrls[186] || "" },
+            { name: "Zumbi", imageUrl: directDriveImageUrls[187] || "" },
+            { name: "Figura de pau", imageUrl: directDriveImageUrls[188] || "" },
+            { name: "Osso propenso", imageUrl: directDriveImageUrls[189] || "" },
+            { name: "Orelhas de coelho", imageUrl: directDriveImageUrls[190] || "" },
+            { name: "Carrinho de mão", imageUrl: directDriveImageUrls[191] || "" },
+            { name: "Flor de lótus", imageUrl: directDriveImageUrls[192] || "" },
+            { name: "Fusão", imageUrl: directDriveImageUrls[193] || "" },
+            { name: "Relógio", imageUrl: directDriveImageUrls[194] || "" },
+            { name: "Almoço quente", imageUrl: directDriveImageUrls[195] || "" },
+            { name: "Concubina", imageUrl: directDriveImageUrls[196] || "" },
+            { name: "Saltar", imageUrl: directDriveImageUrls[197] || "" },
+            { name: "Tocha", imageUrl: directDriveImageUrls[198] || "" },
+            { name: "Centelha", imageUrl: directDriveImageUrls[199] || "" },
+            { name: "Hidrante", imageUrl: directDriveImageUrls[200] || "" },
+            { name: "Renda", imageUrl: directDriveImageUrls[201] || "" },
+            { name: "Cachorro para baixo", imageUrl: directDriveImageUrls[202] || "" },
+            { name: "Torre Eiffel", imageUrl: directDriveImageUrls[203] || "" },
+            { name: "Primavera", imageUrl: directDriveImageUrls[204] || "" },
+            { name: "Homem-Aranha", imageUrl: directDriveImageUrls[205] || "" },
+            { name: "Ponte de Londres", imageUrl: directDriveImageUrls[206] || "" },
+            { name: "Elefante", imageUrl: directDriveImageUrls[207] || "" },
+            { name: "Tesoura", imageUrl: directDriveImageUrls[208] || "" },
+            { name: "Zeus", imageUrl: directDriveImageUrls[209] || "" },
+            { name: "Orquídea", imageUrl: directDriveImageUrls[210] || "" },
+            { name: "Helicóptero", imageUrl: directDriveImageUrls[211] || "" },
+            { name: "Bicicleta", imageUrl: directDriveImageUrls[212] || "" },
+            { name: "T invertido", imageUrl: directDriveImageUrls[213] || "" },
+            { name: "Saca-rolhas", imageUrl: directDriveImageUrls[214] || "" },
+            { name: "Python", imageUrl: directDriveImageUrls[215] || "" },
+            { name: "Relógio", imageUrl: directDriveImageUrls[216] || "" },
+            { name: "Berço", imageUrl: directDriveImageUrls[217] || "" },
+            { name: "Unicórnio", imageUrl: directDriveImageUrls[218] || "" },
+            { name: "Pessoal", imageUrl: directDriveImageUrls[219] || "" },
+            { name: "Virgem", imageUrl: directDriveImageUrls[220] || "" },
+            { name: "Imperador", imageUrl: directDriveImageUrls[221] || "" },
+            { name: "Guarda Prisional", imageUrl: directDriveImageUrls[222] || "" },
+            { name: "Capitão", imageUrl: directDriveImageUrls[223] || "" },
+            { name: "Violoncelo", imageUrl: directDriveImageUrls[224] || "" },
+            { name: "Empilhador", imageUrl: directDriveImageUrls[225] || "" },
+            { name: "Crucificação", imageUrl: directDriveImageUrls[226] || "" },
+            { name: "Quebra-cabeça", imageUrl: directDriveImageUrls[227] || "" },
+            { name: "T Quadrado", imageUrl: directDriveImageUrls[228] || "" },
+            { name: "Jackhammer", imageUrl: directDriveImageUrls[229] || "" },
+            { name: "Peixes", imageUrl: directDriveImageUrls[230] || "" },
+            { name: "Fã", imageUrl: directDriveImageUrls[231] || "" },
+            { name: "Taurus", imageUrl: directDriveImageUrls[232] || "" },
+            { name: "Nirvana", imageUrl: directDriveImageUrls[233] || "" },
+            { name: "Leopardo", imageUrl: directDriveImageUrls[234] || "" },
+            { name: "Macaco-aranha", imageUrl: directDriveImageUrls[235] || "" },
+            { name: "Avião", imageUrl: directDriveImageUrls[236] || "" },
+            { name: "Ponte", imageUrl: directDriveImageUrls[237] || "" },
+            { name: "Fita (colher invertida)", imageUrl: directDriveImageUrls[238] || "" },
+            { name: "Encanador", imageUrl: directDriveImageUrls[239] || "" },
+            { name: "Dragão", imageUrl: directDriveImageUrls[240] || "" },
+            { name: "O amante mais quente", imageUrl: directDriveImageUrls[241] || "" },
+            { name: "Vagina apertada", imageUrl: directDriveImageUrls[242] || "" },
+            { name: "Entrada secreta", imageUrl: directDriveImageUrls[243] || "" },
+            { name: "Ioga selvagem", imageUrl: directDriveImageUrls[244] || "" },
+            { name: "Festa de aniversário", imageUrl: directDriveImageUrls[245] || "" },
+            { name: "Lagarto", imageUrl: directDriveImageUrls[246] || "" },
+            { name: "Sala de espera", imageUrl: directDriveImageUrls[247] || "" },
+            { name: "Exóticos preliminares", imageUrl: directDriveImageUrls[248] || "" },
+            { name: "Cãozinho na borda", imageUrl: directDriveImageUrls[249] || "" },
+            { name: "A roleta russa", imageUrl: directDriveImageUrls[250] || "" },
+            { name: "Fantasia", imageUrl: directDriveImageUrls[251] || "" },
+            { name: "Centelha", imageUrl: directDriveImageUrls[252] || "" },
+            { name: "Propulsor", imageUrl: directDriveImageUrls[253] || "" },
+            { name: "Linda vista", imageUrl: directDriveImageUrls[254] || "" },
+            { name: "Toque sensual", imageUrl: directDriveImageUrls[255] || "" },
+            { name: "Caverna", imageUrl: directDriveImageUrls[256] || "" },
+            { name: "Capoeira brasileira", imageUrl: directDriveImageUrls[257] || "" },
+            { name: "Princesa", imageUrl: directDriveImageUrls[258] || "" },
+            { name: "Girafa", imageUrl: directDriveImageUrls[259] || "" },
+            { name: "Rock and roll", imageUrl: directDriveImageUrls[260] || "" },
+            { name: "Costas", imageUrl: directDriveImageUrls[261] || "" },
+            { name: "Zelo", imageUrl: directDriveImageUrls[262] || "" },
+            { name: "Supernova", imageUrl: directDriveImageUrls[263] || "" },
+            { name: "Prato apimentado", imageUrl: directDriveImageUrls[264] || "" },
+            { name: "Beleza adormecida", imageUrl: directDriveImageUrls[265] || "" },
+            { name: "Pioneiro", imageUrl: directDriveImageUrls[266] || "" },
+            { name: "Semeador", imageUrl: directDriveImageUrls[267] || "" },
+            { name: "Café da manhã especial", imageUrl: directDriveImageUrls[268] || "" },
+            { name: "Aperto apertado", imageUrl: directDriveImageUrls[269] || "" },
+            { name: "Estilo sapinho", imageUrl: directDriveImageUrls[270] || "" },
+            { name: "Nó", imageUrl: directDriveImageUrls[271] || "" },
+            { name: "Refém", imageUrl: directDriveImageUrls[272] || "" },
+            { name: "Cãozinho invertido", imageUrl: directDriveImageUrls[273] || "" },
+            { name: "Cadeira de baloiço", imageUrl: directDriveImageUrls[274] || "" },
+            { name: "Asteróide", imageUrl: directDriveImageUrls[275] || "" },
+            { name: "Estilos únicos", imageUrl: directDriveImageUrls[276] || "" },
+            { name: "Quinto elemento", imageUrl: directDriveImageUrls[277] || "" },
+            { name: "Aterragem suave", imageUrl: directDriveImageUrls[278] || "" },
+            { name: "Super-herói", imageUrl: directDriveImageUrls[279] || "" },
+            { name: "Senhora madura", imageUrl: directDriveImageUrls[280] || "" },
+            { name: "Pernas sobre os ombros", imageUrl: directDriveImageUrls[281] || "" },
+            { name: "Japão", imageUrl: directDriveImageUrls[282] || "" },
+            { name: "Ladyboy", imageUrl: directDriveImageUrls[283] || "" },
+            { name: "Inseminador", imageUrl: directDriveImageUrls[284] || "" },
+            { name: "Garanhão jovem", imageUrl: directDriveImageUrls[285] || "" },
+            { name: "Mestre", imageUrl: directDriveImageUrls[286] || "" },
+            { name: "Capricórnio", imageUrl: directDriveImageUrls[287] || "" },
+            { name: "Libra", imageUrl: directDriveImageUrls[288] || "" },
+            { name: "Arado", imageUrl: directDriveImageUrls[289] || "" },
+            { name: "Gêmeos", imageUrl: directDriveImageUrls[290] || "" },
+            { name: "Сontortionist", imageUrl: directDriveImageUrls[291] || "" },
+            { name: "Forno holandês", imageUrl: directDriveImageUrls[292] || "" },
+            { name: "Porta traseira", imageUrl: directDriveImageUrls[293] || "" },
+            { name: "Rebocador de guerra", imageUrl: directDriveImageUrls[294] || "" },
+            { name: "Fulcrum", imageUrl: directDriveImageUrls[295] || "" },
+            { name: "Maravilhoso banquinho", imageUrl: directDriveImageUrls[296] || "" },
+            { name: "Astrologista", imageUrl: directDriveImageUrls[297] || "" },
+            { name: "Cadeira macia", imageUrl: directDriveImageUrls[298] || "" },
+            { name: "Louise", imageUrl: directDriveImageUrls[299] || "" },
+            { name: "Titular", imageUrl: directDriveImageUrls[300] || "" },
+            { name: "Cadeira de convés", imageUrl: directDriveImageUrls[301] || "" },
+            { name: "Dança lenta", imageUrl: directDriveImageUrls[302] || "" },
+            { name: "Guerreiro caído", imageUrl: directDriveImageUrls[303] || "" },
+            { name: "Zodiac", imageUrl: directDriveImageUrls[304] || "" },
+            { name: "Super-mulher", imageUrl: directDriveImageUrls[305] || "" },
+            { name: "Caminhão", imageUrl: directDriveImageUrls[306] || "" },
+            { name: "Сanadian", imageUrl: directDriveImageUrls[307] || "" },
+            { name: "Сobra", imageUrl: directDriveImageUrls[308] || "" },
+            { name: "Cosmo tântrico", imageUrl: directDriveImageUrls[309] || "" },
+            { name: "Melancia", imageUrl: directDriveImageUrls[310] || "" },
+            { name: "Contra-almirante", imageUrl: directDriveImageUrls[311] || "" },
+            { name: "Fusão", imageUrl: directDriveImageUrls[312] || "" },
+            { name: "Cãozinho baixo", imageUrl: directDriveImageUrls[313] || "" },
+            { name: "Soco de sucção", imageUrl: directDriveImageUrls[314] || "" },
+            { name: "Dia de São Valentim", imageUrl: directDriveImageUrls[315] || "" },
+            { name: "Chef", imageUrl: directDriveImageUrls[316] || "" },
+            { name: "Coquetel jamaicano", imageUrl: directDriveImageUrls[317] || "" },
+            { name: "Fantástico elevador", imageUrl: directDriveImageUrls[318] || "" },
+            { name: "Balançar – 2", imageUrl: directDriveImageUrls[319] || "" },
+            { name: "Gafanhoto", imageUrl: directDriveImageUrls[320] || "" },
+            { name: "Barreira", imageUrl: directDriveImageUrls[321] || "" },
+            { name: "Ilha do Deserto", imageUrl: directDriveImageUrls[322] || "" },
+            { name: "Começo baixo", imageUrl: directDriveImageUrls[323] || "" },
+            { name: "Cowgirl dobrada", imageUrl: directDriveImageUrls[324] || "" },
+            { name: "Conexão reversa", imageUrl: directDriveImageUrls[325] || "" },
+            { name: "Pokemon", imageUrl: directDriveImageUrls[326] || "" },
+            { name: "Rampa de lançamento íntima", imageUrl: directDriveImageUrls[327] || "" },
+            { name: "Alimentador", imageUrl: directDriveImageUrls[328] || "" },
+            { name: "Bíblia de Prazer", imageUrl: directDriveImageUrls[329] || "" },
+            { name: "Bela conversa", imageUrl: directDriveImageUrls[330] || "" },
+            { name: "Cadeira vulgar", imageUrl: directDriveImageUrls[331] || "" },
+            { name: "Apollo", imageUrl: directDriveImageUrls[332] || "" },
+            { name: "Fantástica idéia", imageUrl: directDriveImageUrls[333] || "" },
+            { name: "Trono de Ferro", imageUrl: directDriveImageUrls[334] || "" },
+            { name: "Encanador", imageUrl: directDriveImageUrls[335] || "" },
+            { name: "Sem vergonha", imageUrl: directDriveImageUrls[336] || "" },
+            { name: "Gravata", imageUrl: directDriveImageUrls[337] || "" },
+            { name: "Holandês voador", imageUrl: directDriveImageUrls[338] || "" },
+            { name: "Esfregaço na garganta", imageUrl: directDriveImageUrls[339] || "" },
+            { name: "Fator X", imageUrl: directDriveImageUrls[340] || "" },
+            { name: "Ebony", imageUrl: directDriveImageUrls[341] || "" },
+            { name: "Playboy", imageUrl: directDriveImageUrls[342] || "" },
+            { name: "Fome", imageUrl: directDriveImageUrls[343] || "" },
+            { name: "Necessidade de Speed", imageUrl: directDriveImageUrls[344] || "" },
+            { name: "Pernas no ar", imageUrl: directDriveImageUrls[345] || "" },
+            { name: "Arte chinesa", imageUrl: directDriveImageUrls[346] || "" },
+            { name: "Сrazy broche", imageUrl: directDriveImageUrls[347] || "" },
+            { name: "Slide", imageUrl: directDriveImageUrls[348] || "" },
+            { name: "Encosto", imageUrl: directDriveImageUrls[349] || "" },
+            { name: "Parafuso", imageUrl: directDriveImageUrls[350] || "" },
+            { name: "Conquistador", imageUrl: directDriveImageUrls[351] || "" },
+            { name: "Desculpas", imageUrl: directDriveImageUrls[352] || "" },
+            { name: "Piloto de ar", imageUrl: directDriveImageUrls[353] || "" },
+            { name: "Cunha", imageUrl: directDriveImageUrls[354] || "" },
+            { name: "Fada", imageUrl: directDriveImageUrls[355] || "" },
+            { name: "Encontro surpreendente", imageUrl: directDriveImageUrls[356] || "" },
+            { name: "Cozinha", imageUrl: directDriveImageUrls[357] || "" },
+            { name: "Multiplicar Prazer", imageUrl: directDriveImageUrls[358] || "" },
+            { name: "Estilo militar", imageUrl: directDriveImageUrls[359] || "" },
+            { name: "Desejo desagradável", imageUrl: directDriveImageUrls[360] || "" },
+            { name: "Chocolate de leite", imageUrl: directDriveImageUrls[361] || "" },
+            { name: "Dança suja", imageUrl: directDriveImageUrls[362] || "" },
+            { name: "Arreios", imageUrl: directDriveImageUrls[363] || "" },
+            { name: "Nadar para baixo", imageUrl: directDriveImageUrls[364] || "" },
+            { name: "Beijo Francês", imageUrl: directDriveImageUrls[365] || "" },
+            { name: "Anjo de neve", imageUrl: directDriveImageUrls[366] || "" },
+            { name: "Courtesan", imageUrl: directDriveImageUrls[367] || "" },
+            { name: "Aranha Kinky", imageUrl: directDriveImageUrls[368] || "" },
+            { name: "Trabalhador duro", imageUrl: directDriveImageUrls[369] || "" },
+            { name: "Pterodáctilo", imageUrl: directDriveImageUrls[370] || "" },
+            { name: "Menina tímida", imageUrl: directDriveImageUrls[371] || "" },
+            { name: "Atleta", imageUrl: directDriveImageUrls[372] || "" },
+            { name: "Noite preguiçosa", imageUrl: directDriveImageUrls[373] || "" },
+            { name: "Arco-estrela", imageUrl: directDriveImageUrls[374] || "" },
+            { name: "Сompliment", imageUrl: directDriveImageUrls[375] || "" },
+            { name: "Cativeiro", imageUrl: directDriveImageUrls[376] || "" },
+            { name: "Sem peso", imageUrl: directDriveImageUrls[377] || "" },
+            { name: "Apetite", imageUrl: directDriveImageUrls[378] || "" },
+            { name: "XXX", imageUrl: directDriveImageUrls[379] || "" },
+            { name: "Luz da Lua", imageUrl: directDriveImageUrls[380] || "" },
+            { name: "Tulipa", imageUrl: directDriveImageUrls[381] || "" },
+            { name: "Guilhotina", imageUrl: directDriveImageUrls[382] || "" },
+            { name: "Guitarra espanhola", imageUrl: directDriveImageUrls[383] || "" },
+            { name: "Torta no céu", imageUrl: directDriveImageUrls[384] || "" },
+            { name: "Recarga", imageUrl: directDriveImageUrls[385] || "" },
+            { name: "Torta americana", imageUrl: directDriveImageUrls[386] || "" },
+            { name: "Silêncio", imageUrl: directDriveImageUrls[387] || "" },
+            { name: "Garganta profunda", imageUrl: directDriveImageUrls[388] || "" },
+            { name: "Сhili cão", imageUrl: directDriveImageUrls[389] || "" },
+            { name: "Tentaçã", imageUrl: directDriveImageUrls[390] || "" },
+            { name: "Virada", imageUrl: directDriveImageUrls[391] || "" },
+            { name: "Martelo de Thor", imageUrl: directDriveImageUrls[392] || "" },
+            { name: "Cowgirl na cadeira", imageUrl: directDriveImageUrls[393] || "" },
+            { name: "Tapete mágico", imageUrl: directDriveImageUrls[394] || "" },
+            { name: "Força G", imageUrl: directDriveImageUrls[395] || "" },
+            { name: "Lanche", imageUrl: directDriveImageUrls[396] || "" },
+            { name: "Doce cona", imageUrl: directDriveImageUrls[397] || "" },
+            { name: "Titanic", imageUrl: directDriveImageUrls[398] || "" },
+            { name: "Bung", imageUrl: directDriveImageUrls[399] || "" },
+            { name: "Fogos de artifício", imageUrl: directDriveImageUrls[400] || "" },
+            { name: "Сar mechanic", imageUrl: directDriveImageUrls[401] || "" },
+            { name: "Сatch", imageUrl: directDriveImageUrls[402] || "" },
+            { name: "Vara profunda", imageUrl: directDriveImageUrls[403] || "" },
+            { name: "Cavalo Marinho", imageUrl: directDriveImageUrls[404] || "" },
+            { name: "Guerra das Estrelas", imageUrl: directDriveImageUrls[405] || "" },
+            { name: "Barbie", imageUrl: directDriveImageUrls[406] || "" },
+            { name: "Nariz", imageUrl: directDriveImageUrls[407] || "" },
+            { name: "Rebocador", imageUrl: directDriveImageUrls[408] || "" },
+            { name: "Geme", imageUrl: directDriveImageUrls[409] || "" },
+            { name: "Guardião", imageUrl: directDriveImageUrls[410] || "" },
+            { name: "Pôr-do-sol espanhol", imageUrl: directDriveImageUrls[411] || "" },
+            { name: "Linha reta", imageUrl: directDriveImageUrls[412] || "" },
+            { name: "Formação em V", imageUrl: directDriveImageUrls[413] || "" },
+            { name: "Delicadeza", imageUrl: directDriveImageUrls[414] || "" },
+            { name: "Valedictorian", imageUrl: directDriveImageUrls[415] || "" },
+            { name: "Equilíbrio", imageUrl: directDriveImageUrls[416] || "" },
+            { name: "Pinguim", imageUrl: directDriveImageUrls[417] || "" },
+            { name: "Estilo mexicano", imageUrl: directDriveImageUrls[418] || "" },
+            { name: "Full nelson", imageUrl: directDriveImageUrls[419] || "" },
+            { name: "Aventureiro", imageUrl: directDriveImageUrls[420] || "" },
+            { name: "Сhili pimenta", imageUrl: directDriveImageUrls[421] || "" },
+            { name: "Costa", imageUrl: directDriveImageUrls[422] || "" },
+            { name: "Punição", imageUrl: directDriveImageUrls[423] || "" },
+            { name: "Férias", imageUrl: directDriveImageUrls[424] || "" },
+            { name: "Amador", imageUrl: directDriveImageUrls[425] || "" },
+            { name: "Oásis", imageUrl: directDriveImageUrls[426] || "" },
+            { name: "Inventivo 69", imageUrl: directDriveImageUrls[427] || "" },
+            { name: "Respiração próxima", imageUrl: directDriveImageUrls[428] || "" },
+            { name: "Truque raro", imageUrl: directDriveImageUrls[429] || "" },
+            { name: "Beija-flor", imageUrl: directDriveImageUrls[430] || "" },
+            { name: "Titanic – 2", imageUrl: directDriveImageUrls[431] || "" },
+            { name: "Gerador Orgazm", imageUrl: directDriveImageUrls[432] || "" },
+            { name: "Doce pecado", imageUrl: directDriveImageUrls[433] || "" },
+            { name: "Borboleta noturna", imageUrl: directDriveImageUrls[434] || "" },
+            { name: "Abismo", imageUrl: directDriveImageUrls[435] || "" },
+            { name: "Mergulho", imageUrl: directDriveImageUrls[436] || "" },
+            { name: "Sanchez sujo", imageUrl: directDriveImageUrls[437] || "" },
+            { name: "Cowgirl sobre a mesa", imageUrl: directDriveImageUrls[438] || "" },
+            { name: "Cartaz erótico", imageUrl: directDriveImageUrls[439] || "" },
+            { name: "Mesa de centro", imageUrl: directDriveImageUrls[440] || "" },
+            { name: "Tambor", imageUrl: directDriveImageUrls[441] || "" },
+            { name: "Encantador de serpentes", imageUrl: directDriveImageUrls[442] || "" },
+            { name: "Сhibi", imageUrl: directDriveImageUrls[443] || "" },
+            { name: "Carl quente", imageUrl: directDriveImageUrls[444] || "" },
+            { name: "Ápice", imageUrl: directDriveImageUrls[445] || "" },
+            { name: "Fonte", imageUrl: directDriveImageUrls[446] || "" },
+            { name: "Descida", imageUrl: directDriveImageUrls[447] || "" },
+            { name: "O mestre lambedor", imageUrl: directDriveImageUrls[448] || "" },
+            { name: "Сatapult", imageUrl: directDriveImageUrls[449] || "" },
+            { name: "Stickman", imageUrl: directDriveImageUrls[450] || "" },
+            { name: "Novo 69 na cadeira", imageUrl: directDriveImageUrls[451] || "" },
+            { name: "Cu suculento", imageUrl: directDriveImageUrls[452] || "" },
+            { name: "O homem das mulheres", imageUrl: directDriveImageUrls[453] || "" },
+            { name: "Jogo excitante", imageUrl: directDriveImageUrls[454] || "" },
+            { name: "Saco de chá", imageUrl: directDriveImageUrls[455] || "" },
+            { name: "Harpa", imageUrl: directDriveImageUrls[456] || "" },
+            { name: "Beijo grego", imageUrl: directDriveImageUrls[457] || "" },
+            { name: "Inclinação", imageUrl: directDriveImageUrls[458] || "" },
+            { name: "Loop", imageUrl: directDriveImageUrls[459] || "" },
+            { name: "Roda de pino", imageUrl: directDriveImageUrls[460] || "" },
+            { name: "Gimlet", imageUrl: directDriveImageUrls[461] || "" },
+            { name: "Relaxamento", imageUrl: directDriveImageUrls[462] || "" },
+            { name: "Rata apertada", imageUrl: directDriveImageUrls[463] || "" },
+            { name: "Cataratas do Niágara", imageUrl: directDriveImageUrls[464] || "" },
+            { name: "Foguetão", imageUrl: directDriveImageUrls[465] || "" },
+            { name: "Satyr", imageUrl: directDriveImageUrls[466] || "" },
+            { name: "Cavaleiro", imageUrl: directDriveImageUrls[467] || "" },
+            { name: "Hood", imageUrl: directDriveImageUrls[468] || "" },
+            { name: "Montanha сreek", imageUrl: directDriveImageUrls[469] || "" },
+            { name: "Colina", imageUrl: directDriveImageUrls[470] || "" },
+            { name: "Wrestling", imageUrl: directDriveImageUrls[471] || "" },
+            { name: "Olhe para o céu", imageUrl: directDriveImageUrls[472] || "" },
+            { name: "Passivo doggy", imageUrl: directDriveImageUrls[473] || "" },
+            { name: "Jack", imageUrl: directDriveImageUrls[474] || "" },
+            { name: "Camaleão", imageUrl: directDriveImageUrls[475] || "" },
+            { name: "Espetos", imageUrl: directDriveImageUrls[476] || "" },
+            { name: "Sela", imageUrl: directDriveImageUrls[477] || "" },
+            { name: "Adoração", imageUrl: directDriveImageUrls[478] || "" },
+            { name: "Emaranhado", imageUrl: directDriveImageUrls[479] || "" },
+            { name: "Triângulo das Bermudas", imageUrl: directDriveImageUrls[480] || "" },
+            { name: "Сounterblow", imageUrl: directDriveImageUrls[481] || "" },
+            { name: "Lugar confortável", imageUrl: directDriveImageUrls[482] || "" },
+            { name: "Julia", imageUrl: directDriveImageUrls[483] || "" },
+            { name: "Penetração orgásmica", imageUrl: directDriveImageUrls[484] || "" },
+            { name: "Beleza flexível", imageUrl: directDriveImageUrls[485] || "" },
+            { name: "Bomba", imageUrl: directDriveImageUrls[486] || "" },
+            { name: "Meia-noite", imageUrl: directDriveImageUrls[487] || "" },
+            { name: "Tábua", imageUrl: directDriveImageUrls[488] || "" },
+            { name: "Atordoador", imageUrl: directDriveImageUrls[489] || "" },
+            { name: "Pônei selvagem", imageUrl: directDriveImageUrls[490] || "" }
+        ];
+
+        let currentPositionName = ""; // Armazena o nome da posição sorteada
+
+        // Função auxiliar para exibir o spinner e desabilitar um botão
+        function showLoading(elementId, text) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `
+                <div class="text-center text-gray-400">
+                    <div class="loading-spinner mx-auto"></div>
+                    ${text}
+                </div>
+            `;
+            element.classList.add('visible');
+        }
+
+        // Função auxiliar para ocultar o spinner e exibir conteúdo
+        function hideLoading(elementId, content) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = content;
+            element.classList.add('visible');
+        }
+
+        // Função para sortear uma posição aleatória e obter detalhes
+        async function drawPosition() {
+            const positionDisplay = document.getElementById('positionDisplay');
+            const drawButton = document.getElementById('drawButton');
+            const atmosphereButton = document.getElementById('atmosphereButton');
+            const scenarioButton = document.getElementById('scenarioButton');
+
+            // Limpar e esconder saídas anteriores
+            document.getElementById('atmosphereOutput').classList.remove('visible');
+            document.getElementById('scenarioOutput').classList.remove('visible');
+            document.getElementById('atmosphereText').textContent = "";
+            document.getElementById('scenarioText').textContent = "";
+
+
+            // Exibir estado de carregamento para a posição principal
+            positionDisplay.innerHTML = `
+                <div class="text-center text-gray-400">
+                    <div class="loading-spinner mx-auto"></div>
+                    Carregando posição e imagem...
+                </div>
+            `;
+            drawButton.disabled = true; // Desabilitar botão principal
+            atmosphereButton.disabled = true; // Desabilitar botões de funcionalidade
+            scenarioButton.disabled = true;
+
+            const randomIndex = Math.floor(Math.random() * positionsData.length);
+            const selectedPosition = positionsData[randomIndex];
+            currentPositionName = selectedPosition.name; // Armazenar o nome da posição sorteada
+
+            let imageUrlToDisplay = selectedPosition.imageUrl;
+            console.log("Selected Position:", selectedPosition.name);
+            console.log("Initial Image URL (from Drive list):", imageUrlToDisplay);
+
+
+            try {
+                // --- Gerar explicação usando a API Gemini ---
+                let chatHistoryText = [];
+                chatHistoryText.push({ role: "user", parts: [{ text: `Para a posição sexual chamada "${currentPositionName}", provide a very brief explanation (1-2 sentences) in Portuguese. Focus on describing what the position entails. Do not include introductory phrases like "Esta posição..." or "A posição [nome]..." or "É uma posição...". Just the descriptive explanation.` }] });
+                const payloadText = { contents: chatHistoryText };
+                const apiKey = ""; // Canvas fornecerá isso em tempo de execução
+                const apiUrlText = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const responseText = await fetch(apiUrlText, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payloadText)
+                });
+
+                const resultText = await responseText.json();
+                let explanation = "Nenhuma explicação disponível.";
+                if (resultText.candidates && resultText.candidates.length > 0 &&
+                    resultText.candidates[0].content && resultText.candidates[0].content.parts &&
+                    resultText.candidates[0].content.parts.length > 0) {
+                    explanation = resultText.candidates[0].content.parts[0].text;
+                }
+                console.log("Generated Explanation:", explanation);
+
+
+                // --- Gerar imagem usando a API Imagen SE NÃO HOUVER URL fornecida ---
+                if (!imageUrlToDisplay) { // Se não tiver URL direta, gera com Imagen
+                    console.log("No direct Drive URL found. Attempting Imagen API generation...");
+                    const promptImage = `Uma ilustração detalhada e realista da posição sexual "${currentPositionName}" do Kama Sutra. A imagem deve retratar um casal humano na pose descrita, com foco em precisão anatômica e renderização naturalista. Certifique-se de que a imagem seja de bom gosto e representativa da posição, sem ser excessivamente explícita.`;
+                    const payloadImage = { instances: { prompt: promptImage }, parameters: { "sampleCount": 1} };
+                    const apiUrlImage = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+
+                    const responseImage = await fetch(apiUrlImage, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payloadImage)
+                    });
+
+                    const resultImage = await responseImage.json();
+                    console.log("Imagen API Result:", resultImage);
+
+                    if (resultImage.predictions && resultImage.predictions.length > 0 && resultImage.predictions[0].bytesBase64Encoded) {
+                        imageUrlToDisplay = `data:image/png;base64,${resultImage.predictions[0].bytesBase64Encoded}`;
+                        console.log("Imagen API Image generated successfully.");
+                    } else {
+                        console.log("Imagen API failed to generate image. Falling back to placeholder.");
+                        // Fallback para placeholder se a geração da imagem falhar e não houver URL
+                        const imageText = currentPositionName.replace(/ /g, '_').substring(0, 20);
+                        imageUrlToDisplay = `https://placehold.co/300x200/334155/e2e8f0?text=${imageText}`;
+                    }
+                } else {
+                    console.log("Using direct Drive URL. Not calling Imagen API.");
+                }
+
+                console.log("Final Image URL to display:", imageUrlToDisplay);
+
+                // Atualizar exibição com as informações obtidas
+                positionDisplay.innerHTML = `
+                    <h2 class="text-2xl font-bold mb-3 text-blue-300">${currentPositionName}</h2>
+                    <img src="${imageUrlToDisplay}" alt="Imagem da posição ${currentPositionName}" class="mx-auto rounded-lg mb-4 shadow-lg" onerror="this.onerror=null; this.src='https://placehold.co/300x200/334155/e2e8f0?text=Imagem_Falhou'; console.error('Falha ao carregar a imagem: ' + this.src);">
+                    <p class="text-lg text-gray-300">${explanation}</p>
+                `;
+
+            } catch (error) {
+                console.error("Erro ao sortear posição ou gerar imagem:", error);
+                positionDisplay.innerHTML = '<div class="text-center text-red-500">Erro ao carregar a posição ou gerar a imagem. Por favor, tente novamente.</div>';
+            } finally {
+                drawButton.disabled = false; // Reabilitar botão principal
+                atmosphereButton.disabled = false; // Reabilitar botões de funcionalidade
+                scenarioButton.disabled = false;
+            }
+        }
+
+        // Função para gerar sugestão de ambiente
+        async function generateAtmosphere() {
+            if (!currentPositionName) {
+                document.getElementById('atmosphereText').textContent = "Por favor, sorteie uma posição primeiro.";
+                document.getElementById('atmosphereOutput').classList.add('visible');
+                return;
+            }
+
+            const atmosphereTextElement = document.getElementById('atmosphereText');
+            showLoading('atmosphereOutput', 'Gerando ambiente...');
+            document.getElementById('atmosphereButton').disabled = true;
+
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: `Para a posição sexual chamada "${currentPositionName}", sugira um ambiente sensual e íntimo, incluindo estilo de música, iluminação e uma breve descrição do clima. Responda em português. Seja criativo e conciso.` }] });
+                const payload = { contents: chatHistory };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                let atmosphere = "Nenhuma sugestão de ambiente disponível.";
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    atmosphere = result.candidates[0].content.parts[0].text;
+                }
+                hideLoading('atmosphereOutput', `<h3>Sugestão de Ambiente</h3><p>${atmosphere}</p>`);
+
+            } catch (error) {
+                console.error("Erro ao gerar ambiente:", error);
+                hideLoading('atmosphereOutput', `<h3>Sugestão de Ambiente</h3><p class="text-red-500">Erro ao gerar ambiente. Tente novamente.</p>`);
+            } finally {
+                document.getElementById('atmosphereButton').disabled = false;
+            }
+        }
+
+        // Função para gerar roteiro criativo
+        async function generateScenario() {
+            if (!currentPositionName) {
+                document.getElementById('scenarioText').textContent = "Por favor, sorteie uma posição primeiro.";
+                document.getElementById('scenarioOutput').classList.add('visible');
+                return;
+            }
+
+            const scenarioTextElement = document.getElementById('scenarioText');
+            showLoading('scenarioOutput', 'Gerando roteiro...');
+            document.getElementById('scenarioButton').disabled = true;
+
+            try {
+                let chatHistory = [];
+                chatHistory.push({ role: "user", parts: [{ text: `Crie um roteiro de role-play curto, criativo e divertido (1-2 frases) para a posição sexual chamada "${currentPositionName}". Responda em português. Mantenha-o sugestivo e divertido.` }] });
+                const payload = { contents: chatHistory };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                let scenario = "Nenhum roteiro criativo disponível.";
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    scenario = result.candidates[0].content.parts[0].text;
+                }
+                hideLoading('scenarioOutput', `<h3>Sugestão de Roteiro Criativo</h3><p>${scenario}</p>`);
+
+            } catch (error) {
+                console.error("Erro ao gerar roteiro:", error);
+                hideLoading('scenarioOutput', `<h3>Sugestão de Roteiro Criativo</h3><p class="text-red-500">Erro ao gerar roteiro. Tente novamente.</p>`);
+            } finally {
+                document.getElementById('scenarioButton').disabled = false;
+            }
+        }
+
+        // Adiciona os event listeners aos botões ao carregar a janela
+        window.onload = function() {
+            document.getElementById('drawButton').addEventListener('click', drawPosition);
+            document.getElementById('atmosphereButton').addEventListener('click', generateAtmosphere);
+            document.getElementById('scenarioButton').addEventListener('click', generateScenario);
+        };
+    </script>
+</body>
+</html>
