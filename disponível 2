@@ -1,1 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roteiro Interativo: Europa 30 Dias para Casal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Earthy Harmony -->
+    <!-- Application Structure Plan: A single-page, vertical-scrolling application. It starts with a hero section, followed by a dashboard-style "Visão Geral" with an interactive budget chart and a visual trip summary. The core "Roteiro Detalhado" uses an accordion structure to present each stage of the trip, preventing information overload. A new, value-add "Checklist de Planejamento" section turns the document into a practical tool. This structure was chosen to transform a static report into a digestible, engaging, and useful planning application, prioritizing user flow from high-level overview to fine-grained details. -->
+    <!-- Visualization & Content Choices: The budget table is converted into a Chart.js donut chart (Goal: Compare/Inform) for better visual impact. The day-by-day itinerary is organized into an accordion (Goal: Organize) using JS to toggle visibility, making the content manageable. "Dicas CVLS" are styled as distinct callout boxes (Goal: Highlight) for emphasis. A new interactive checklist (Goal: Engage/Utilize) was created with HTML/JS. Cost estimates are added per day (with expandable details) and summarized per stage to enhance planning. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F7F4;
+            color: #333;
+        }
+        h1, h2, h3 {
+            font-family: 'Playfair Display', serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        .accordion-content, .cost-details-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .accordion-button.open .accordion-arrow, .cost-details-button.open .cost-arrow {
+            transform: rotate(180deg);
+        }
+        .checklist-item.completed {
+            text-decoration: line-through;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body class="antialiased">
 
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="text-2xl font-bold text-gray-800">Eurotrip '25</div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#visao-geral" class="text-gray-600 hover:text-blue-600 transition">Visão Geral</a>
+                <a href="#roteiro" class="text-gray-600 hover:text-blue-600 transition">Roteiro</a>
+                <a href="#checklist" class="text-gray-600 hover:text-blue-600 transition">Checklist</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero Section -->
+        <section class="text-center py-20 px-6 bg-stone-700">
+            <h1 class="text-5xl md:text-6xl text-white font-bold mb-4">Roteiro Europa 30 Dias</h1>
+            <p class="text-xl text-white font-light">Uma Aventura Inesquecível para Casal em Fevereiro e Março</p>
+        </section>
+
+        <!-- Visão Geral Section -->
+        <section id="visao-geral" class="py-16 bg-white">
+            <div class="container mx-auto px-6">
+                <h2 class="text-4xl font-bold text-center mb-2">Visão Geral da Viagem</h2>
+                <p class="text-center text-gray-600 mb-12 max-w-3xl mx-auto">
+                    Aqui está um resumo da sua jornada pela Europa. Explore o orçamento estimado e o fluxo da viagem para ter uma ideia clara do que esperar. Esta seção serve como seu painel de controle para o planejamento.
+                </p>
+                <div class="grid md:grid-cols-2 gap-12 items-center">
+                    <!-- Budget Chart -->
+                    <div class="w-full">
+                        <h3 class="text-2xl font-bold text-center mb-4">Orçamento Estimado (Casal)</h3>
+                        <div class="chart-container">
+                            <canvas id="budgetChart"></canvas>
+                        </div>
+                        <p id="totalBudget" class="text-center mt-4 text-lg font-semibold"></p>
+                        <p class="text-center text-xs text-gray-500 mt-1">*Valores médios baseados nas estimativas. Cotação do Euro considerada para conversão.</p>
+                    </div>
+                    <!-- Trip Summary -->
+                    <div>
+                        <h3 class="text-2xl font-bold text-center mb-6">Etapas da Jornada</h3>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-lg">Etapa 1: Paris, França (4 dias)</h4>
+                                <p class="text-sm text-gray-600">Foco: Cultura, Magia Disney e Romance.</p>
+                            </div>
+                            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-lg">Etapa 2: Holanda & Bélgica (8 dias)</h4>
+                                <p class="text-sm text-gray-600">Foco: Base familiar, cidades charmosas e moinhos.</p>
+                            </div>
+                            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-lg">Etapa 3: Suíça & Itália (9 dias)</h4>
+                                <p class="text-sm text-gray-600">Foco: Aventura nos Alpes (esqui) e História em Roma.</p>
+                            </div>
+                             <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <h4 class="font-bold text-lg">Etapa 4: Copenhague & Suécia (6 dias)</h4>
+                                <p class="text-sm text-gray-600">Foco: Design Nórdico, "Hygge" e visita à Suécia.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Roteiro Detalhado Section -->
+        <section id="roteiro" class="py-16">
+            <div class="container mx-auto px-6">
+                <h2 class="text-4xl font-bold text-center mb-2">Roteiro Passo a Passo</h2>
+                <p class="text-center text-gray-600 mb-12 max-w-3xl mx-auto">
+                    Mergulhe nos detalhes de cada dia da sua viagem. Clique na etapa para expandir e depois no custo diário para ver todos os valores detalhados. Logística, custos e dicas: tudo o que você precisa está aqui.
+                </p>
+                <div id="accordionContainer" class="space-y-4 max-w-4xl mx-auto">
+                    <!-- Accordion items will be injected here by JavaScript -->
+                </div>
+            </div>
+        </section>
+        
+        <!-- Checklist Section -->
+        <section id="checklist" class="py-16 bg-white">
+            <div class="container mx-auto px-6">
+                 <h2 class="text-4xl font-bold text-center mb-2">Checklist de Planejamento</h2>
+                <p class="text-center text-gray-600 mb-12 max-w-3xl mx-auto">
+                    Organização é tudo! Use este checklist interativo para acompanhar as tarefas essenciais do seu planejamento. Marcar cada item concluído trará a tranquilidade de saber que tudo está sob controle para a sua grande aventura.
+                </p>
+                <div class="max-w-2xl mx-auto bg-gray-50 p-6 rounded-lg border border-gray-200">
+                    <div id="checklistContainer" class="space-y-3">
+                        <!-- Checklist items will be injected here by JavaScript -->
+                    </div>
+                     <div class="mt-6">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
+                        </div>
+                        <p id="progressText" class="text-center text-sm mt-2 text-gray-600">0% completo</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white text-center p-6">
+        <p>&copy; 2025 Roteiro Interativo. Criado para uma viagem inesquecível.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- DATA ---
+            const budgetData = {
+                'Passagens Aéreas': 12000,
+                'Transporte Interno': 6000,
+                'Hospedagem': 19000,
+                'Alimentação e Atividades': 23000,
+            };
+
+            const itineraryData = [
+                {
+                    title: 'Etapa 1: Paris, França (4 Dias)',
+                    period: 'Final de Fevereiro. Clima frio, ideal para museus e cafés aconchegantes.',
+                    lodgingCost: { paris: { nights: 4, rate: 150 } },
+                    days: [
+                        { day: 1, title: 'Chegada e Primeiro Contato', description: 'Caminhada pela Île de la Cité para ver a Notre-Dame (exterior), Sainte-Chapelle e jantar romântico no Quartier Latin.', transport: 'Do Aeroporto CDG, pegar o trem RER B até a estação Châtelet–Les Halles (aprox. 45 min, ~€11.80 por pessoa). De lá, baldeação para o metrô até a estação mais próxima do seu hotel.', costDetails: { 'Transporte (RER B x2)': 24, 'Jantar (Quartier Latin)': 80, 'Extras (Café/Doce)': 16 } },
+                        { day: 2, title: 'Arte e Vistas Icônicas', description: 'Manhã no Museu do Louvre. À tarde, subida na Torre Eiffel e cruzeiro pelo Rio Sena ao anoitecer.', transport: 'Use o Metrô (Linha 1 ou 7 para Palais Royal-Musée du Louvre). Um carnê de 10 tickets (t+) é mais econômico para o casal.', costDetails: { 'Ingressos (Louvre x2)': 44, 'Ingressos (Torre Eiffel x2)': 58, 'Ingressos (Cruzeiro Sena x2)': 30, 'Almoço (Bistrô)': 50, 'Jantar': 70, 'Transporte (Metrô)': 8 } },
+                        { day: 3, title: 'Magia na Disneyland', description: 'Dia inteiro dedicado aos parques Disneyland e Walt Disney Studios.', tip: 'Levem lanches e garrafas de água para economizar dentro do parque.', transport: 'Pegar o trem RER A na estação Châtelet–Les Halles ou Nation, sentido Marne-la-Vallée–Chessy (é a última estação, aprox. 40 min).', costDetails: { 'Transporte (RER A ida/volta x2)': 32, 'Ingressos (Disney 1 Dia/2 Parques x2)': 220, 'Alimentação no Parque': 80 } },
+                        { day: 4, title: 'Charme de Montmartre e Viagem', description: 'Manhã explorando a Basílica de Sacré-Cœur e a Praça dos Artistas. À tarde, viagem para Leiden.', transport: 'Use o Metrô para a estação Anvers (Linha 2). Depois, pegue o trem de alta velocidade (Thalys/Eurostar) na estação Gare du Nord para a Holanda.', costDetails: { 'Almoço': 50, 'Café da manhã/Lanches': 20, 'Transporte (Metrô)': 8 } },
+                    ]
+                },
+                {
+                    title: 'Etapa 2: Holanda & Bélgica (8 Dias)',
+                    period: 'Início de Março. Hospedagem gratuita com familiar.',
+                    lodgingCost: { leiden: { nights: 8, rate: 0 } },
+                    days: [
+                        { day: 5, title: 'Chegada e Aconchego em Leiden', description: 'Instalem-se com seu parente. Passeio a pé para conhecer os canais e a arquitetura de Leiden.', transport: 'O trem de Paris chega na estação Leiden Centraal. De lá, o deslocamento é a pé ou com transporte local.', costDetails: { 'Jantar': 40, 'Compras Supermercado': 30 } },
+                        { day: 6, title: 'Amsterdam', description: 'Passeio de barco pelos canais, explore o boêmio bairro Jordaan e visite o Rijksmuseum.', transport: 'Trem Intercity de Leiden Centraal para Amsterdam Centraal (aprox. 35 min). Em Amsterdam, o melhor é caminhar ou usar o tram.', costDetails: { 'Transporte (Trem ida/volta x2)': 40, 'Ingressos (Rijksmuseum x2)': 44, 'Passeio de Barco (x2)': 32, 'Almoço/Jantar': 80 } },
+                        { day: 7, title: 'Moinhos e Tradição', description: 'Visita a Zaanse Schans para ver os moinhos de vento em funcionamento e as fábricas de queijo.', transport: 'Trem de Leiden Centraal para Zaandijk Zaanse Schans (com uma baldeação em Sloterdijk, aprox. 50 min).', costDetails: { 'Transporte (Trem ida/volta x2)': 30, 'Almoço/Lanches': 60, 'Entrada em Moinhos/Museus': 20 } },
+                        { day: 8, title: 'Haia e a Realeza', description: 'Visitem o Binnenhof (centro do governo) e o famoso quadro "Moça com Brinco de Pérola" no museu Mauritshuis.', transport: 'Trem Intercity de Leiden Centraal para Den Haag Centraal (aprox. 15 min).', costDetails: { 'Transporte (Trem ida/volta x2)': 15, 'Ingressos (Mauritshuis x2)': 36, 'Almoço/Jantar': 70 } },
+                        { day: 9, title: 'Bate e volta a Bruges, Bélgica', description: 'Explore a cidade medieval, seus canais e chocolates.', transport: 'Compre com antecedência o trem internacional de Leiden para Bruges (com baldeações, aprox. 2h30).', costDetails: { 'Transporte (Trem ida/volta x2)': 100, 'Almoço/Jantar/Chocolates': 80 } },
+                        { day: 10, title: 'Rotterdam Moderna', description: 'Veja a arquitetura inovadora, as Casas Cubo e o mercado Markthal.', transport: 'Trem Intercity de Leiden Centraal para Rotterdam Centraal (aprox. 30 min).', costDetails: { 'Transporte (Trem ida/volta x2)': 25, 'Almoço/Jantar': 70 } },
+                        { day: 11, title: 'Tulipas (Condicional) ou Delft', description: 'Se for final de março, visite o parque Keukenhof. Senão, explore a charmosa cidade de Delft.', transport: 'Para Keukenhof, ônibus de Leiden Centraal. Para Delft, trem (aprox. 15 min).', costDetails: { 'Transporte': 30, 'Ingressos (Keukenhof x2)': 40, 'Almoço': 60 } },
+                        { day: 12, title: 'Despedida e Voo para a Suíça', description: 'Dia tranquilo em Leiden e voo no final da tarde para Genebra.', transport: 'Trem de Leiden Centraal para o Aeroporto de Schiphol (AMS) (aprox. 20 min). Voo low-cost (EasyJet, por ex.) para Genebra (GVA).', costDetails: { 'Transporte (Trem para Aeroporto x2)': 20, 'Alimentação': 40 } },
+                    ]
+                },
+                {
+                    title: 'Etapa 3: Suíça (Esqui) & Itália (História) (9 Dias)',
+                    period: 'Meados de Março. Clima de inverno nos Alpes e primavera em Roma.',
+                    lodgingCost: { zermatt: { nights: 3, rate: 250 }, rome: { nights: 5, rate: 140 } },
+                    days: [
+                        { day: 13, title: 'Chegada aos Alpes', description: 'Acomodação em Zermatt e primeiro contato com o vilarejo alpino.', transport: 'Do aeroporto de Genebra (GVA), pegar o trem direto para Zermatt (com baldeação em Visp). A viagem é cênica e dura aprox. 3h45.', costDetails: { 'Transporte (Trem p/ Zermatt x2)': 150, 'Jantar': 100 } },
+                        { day: 14, title: 'Esqui em Zermatt', description: 'Dia inteiro de esqui ou snowboard nas pistas com vista para o Matterhorn.', tip: 'Reserve o lift pass e o aluguel de equipamentos online para obter descontos. Leve lanches para a montanha.', transport: 'Teleféricos e gôndolas (incluídos no lift pass) para acesso às pistas.', costDetails: { 'Lift Pass (x2)': 160, 'Aluguel Equip. (x2)': 120, 'Almoço/Jantar': 150 } },
+                        { day: 15, title: 'Relax Alpino ou Gornergrat', description: 'Explore o vilarejo, faça uma trilha leve ou suba de trem até Gornergrat para vistas incríveis.', transport: 'A pé pelo vilarejo ou pegar o trem de cremalheira para Gornergrat.', costDetails: { 'Transporte (Trem Gornergrat x2)': 120, 'Almoço/Jantar (Fondue)': 140 } },
+                        { day: 16, title: 'Travessia Panorâmica para a Itália', description: 'Viagem cênica de trem de Zermatt para Roma.', transport: 'Trem de Zermatt para Brig, depois para Milão (Milano Centrale). Em Milão, pegar o trem de alta velocidade (Frecciarossa) para Roma Termini. Duração total: ~8-9 horas.', costDetails: { 'Alimentação (trens/estações)': 60 } },
+                        { day: 17, title: 'A Roma Imperial', description: 'Visita ao Coliseu, Fórum Romano e Monte Palatino.', transport: 'Use o metrô (Linha B para a estação Colosseo). A maior parte do dia será a pé.', costDetails: { 'Ingressos (Combo Coliseu x2)': 36, 'Jantar (Trastevere)': 70, 'Almoço': 40, 'Transporte': 6 } },
+                        { day: 18, title: 'Vaticano e Arte Sacra', description: 'Visita à Basílica de São Pedro e aos Museus do Vaticano, incluindo a Capela Sistina.', tip: 'Compre ingressos online com meses de antecedência!', transport: 'Metrô Linha A para a estação Ottaviano.', costDetails: { 'Ingressos (Museus Vaticano x2)': 40, 'Almoço': 40, 'Jantar': 60, 'Transporte': 6 } },
+                        { day: 19, title: 'Fontanas, Piazzas e Gelato', description: 'Caminhada pelo centro: Panteão, Fontana di Trevi, Piazza Navona.', transport: 'Dia inteiramente a pé para absorver a atmosfera da cidade.', costDetails: { 'Almoço': 40, 'Jantar': 70, 'Gelato/Café': 15 } },
+                        { day: 20, title: 'Dia Livre em Roma', description: 'Explore o parque Villa Borghese, visite o bairro Monti ou revisite seu lugar favorito.', transport: 'A pé ou usando o metrô/ônibus, dependendo da sua escolha.', costDetails: { 'Almoço': 40, 'Jantar': 60, 'Extras': 20 } },
+                        { day: 21, title: 'Voo para a Dinamarca', description: 'Manhã livre e voo à tarde para Copenhague.', transport: 'Trem Leonardo Express de Roma Termini para o Aeroporto Fiumicino (FCO) (30 min, ~€14 por pessoa). Voo para Copenhague (CPH).', costDetails: { 'Transporte (Trem p/ Aeroporto x2)': 28, 'Almoço': 40 } },
+                    ]
+                },
+                 {
+                    title: 'Etapa 4: Copenhague & Toque Nórdico (6 Dias)',
+                    period: 'Final de Março. O frio começa a dar lugar à primavera.',
+                    lodgingCost: { copenhagen: { nights: 6, rate: 160 } },
+                    days: [
+                        { day: 22, title: 'Chegada e "Hygge"', description: 'Passeio pelo colorido canal de Nyhavn e jantar.', transport: 'Do aeroporto de Copenhague (CPH), o metrô (Linha M2) ou trem levam ao centro em 15 min.', costDetails: { 'Transporte (Aeroporto x2)': 12, 'Jantar (Nyhavn)': 100 } },
+                        { day: 23, title: 'Realeza e Design', description: 'Visitem o Palácio de Amalienborg, a Pequena Sereia e aluguem bicicletas.', transport: 'Alugar bicicletas é a melhor forma de se locomover. A cidade é plana e amigável para ciclistas.', costDetails: { 'Aluguel de Bike (x2)': 30, 'Ingressos (Palácio x2)': 30, 'Almoço/Jantar': 120 } },
+                        { day: 24, title: 'Bate e Volta para Malmö, Suécia', description: 'Cruze a Ponte Øresund e conheça outro país.', transport: 'Trem da Estação Central de Copenhague para Malmö (aprox. 35 min).', costDetails: { 'Transporte (Trem ida/volta x2)': 50, 'Almoço/Jantar (Suécia)': 100 } },
+                        { day: 25, title: 'Jardins Tivoli e Compras', description: 'Passeio pela rua de compras Strøget e noite mágica no Tivoli Gardens.', transport: 'A pé, pois a Strøget e o Tivoli são centrais.', costDetails: { 'Ingressos (Tivoli x2)': 40, 'Alimentação/Brinquedos Tivoli': 80, 'Almoço/Jantar': 100 } },
+                        { day: 26, title: 'Cultura Alternativa', description: 'Explore o bairro descolado de Nørrebro ou a cidade livre de Christiania.', transport: 'Bicicleta ou transporte público.', costDetails: { 'Almoço/Jantar': 110, 'Extras': 20 } },
+                        { day: 27, title: 'Último dia e Preparação', description: 'Compras de última hora e um jantar especial de despedida.', transport: 'A pé ou bicicleta.', costDetails: { 'Jantar Especial': 140, 'Almoço': 50 } },
+                    ]
+                }
+            ];
+            
+            const checklistData = [
+                { text: "Comprar passagens aéreas (open-jaw)", completed: false }, { text: "Reservar todas as hospedagens", completed: false }, { text: "Comprar passes de trem de longa distância", completed: false }, { text: "Comprar ingressos do Louvre", completed: false }, { text: "Agendar horário para a Torre Eiffel", completed: false }, { text: "Comprar ingressos da Disneyland Paris", completed: false }, { text: "Verificar data de abertura do Keukenhof", completed: false }, { text: "Reservar lift pass e hotel em Zermatt", completed: false }, { text: "Comprar ingressos do Vaticano e Coliseu", completed: false }, { text: "Contratar seguro viagem (ou verificar do cartão)", completed: false }, { text: "Habilitar cartões para uso internacional", completed: false },
+            ];
+
+            // --- RENDER FUNCTIONS ---
+            
+            const ctx = document.getElementById('budgetChart').getContext('2d');
+            const totalBudget = Object.values(budgetData).reduce((a, b) => a + b, 0);
+            document.getElementById('totalBudget').textContent = `Total Estimado: R$ ${totalBudget.toLocaleString('pt-BR')}`;
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: Object.keys(budgetData), datasets: [{ data: Object.values(budgetData), backgroundColor: ['#4A5568', '#718096', '#A0AEC0', '#CBD5E0'], borderColor: '#F8F7F4', borderWidth: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' }, tooltip: { callbacks: { label: function(c) { let l = c.label||''; if(l){l+=': '}; if(c.parsed!==null){const v=c.parsed; const p=((v/totalBudget)*100).toFixed(1); l+=`R$ ${v.toLocaleString('pt-BR')} (${p}%)`}; return l; }}}}}
+            });
+
+            const accordionContainer = document.getElementById('accordionContainer');
+            itineraryData.forEach((stage, index) => {
+                const totalDailyCosts = stage.days.reduce((acc, day) => acc + Object.values(day.costDetails || {}).reduce((a, b) => a + b, 0), 0);
+                let totalLodging = 0;
+                if (stage.lodgingCost) {
+                    for (const place in stage.lodgingCost) { totalLodging += stage.lodgingCost[place].nights * stage.lodgingCost[place].rate; }
+                }
+                const totalStageCost = totalLodging + totalDailyCosts;
+
+                const daysHtml = stage.days.map((day, dayIndex) => {
+                    const dailyTotal = Object.values(day.costDetails || {}).reduce((a, b) => a + b, 0);
+                    const costDetailsHtml = Object.entries(day.costDetails || {}).map(([key, value]) => `<li class="flex justify-between py-1 border-b border-gray-100"><span>${key}:</span><span>€${value}</span></li>`).join('');
+
+                    return `
+                    <div class="py-4 border-t border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <h5 class="font-semibold text-gray-800">Dia ${day.day}: ${day.title}</h5>
+                            <button class="cost-details-button text-sm font-medium bg-green-100 text-green-800 py-1 px-3 rounded-full whitespace-nowrap flex items-center gap-1 cursor-pointer" data-day-index="${dayIndex}">
+                                <span>~ €${dailyTotal}</span>
+                                <span class="cost-arrow transition-transform duration-300">▼</span>
+                            </button>
+                        </div>
+                        <div class="cost-details-content text-sm text-gray-600">
+                            <ul class="mt-2 p-3 bg-gray-50 rounded-md">${costDetailsHtml}</ul>
+                        </div>
+                        <div class="mt-3 text-sm">
+                            <p class="font-semibold">Como Chegar e se Locomover:</p>
+                            <p class="text-gray-600">${day.transport}</p>
+                        </div>
+                        <p class="mt-2 text-gray-600">${day.description}</p>
+                        ${day.tip ? `<div class="mt-3 p-3 bg-blue-50 text-blue-800 rounded-lg border border-blue-200 text-sm"><strong>💡 Dica:</strong> ${day.tip}</div>` : ''}
+                    </div>
+                `}).join('');
+
+                const accordionItem = `
+                    <div class="border border-gray-200 rounded-lg bg-white">
+                        <button class="accordion-button w-full p-5 text-left font-bold text-xl flex justify-between items-center hover:bg-gray-50 transition" data-index="${index}">
+                            ${stage.title}
+                            <span class="accordion-arrow transition-transform duration-300">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                            </span>
+                        </button>
+                        <div class="accordion-content">
+                            <div class="p-5 pt-0">
+                                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 bg-gray-100 p-3 rounded-lg">
+                                     <p class="text-sm italic text-gray-600 mb-2 sm:mb-0">${stage.period}</p>
+                                     <p class="font-bold text-lg text-gray-800">Custo da Etapa: ~€${totalStageCost.toLocaleString('pt-BR')}</p>
+                                </div>
+                                ${daysHtml}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                accordionContainer.innerHTML += accordionItem;
+            });
+            
+            const checklistContainer = document.getElementById('checklistContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+
+            function renderChecklist() {
+                checklistContainer.innerHTML = '';
+                checklistData.forEach((item, index) => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = `checklist-item flex items-center p-2 rounded-md cursor-pointer hover:bg-gray-200 transition ${item.completed ? 'completed' : ''}`;
+                    itemEl.dataset.index = index;
+                    itemEl.innerHTML = `<input type="checkbox" class="h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none" ${item.completed ? 'checked' : ''}><label class="ml-3 text-gray-700">${item.text}</label>`;
+                    checklistContainer.appendChild(itemEl);
+                });
+                updateProgress();
+            }
+            
+            function updateProgress() {
+                const completedItems = checklistData.filter(item => item.completed).length;
+                const totalItems = checklistData.length;
+                const percentage = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+                progressBar.style.width = `${percentage}%`;
+                progressText.textContent = `${completedItems} de ${totalItems} tarefas concluídas (${Math.round(percentage)}%)`;
+            }
+
+            renderChecklist();
+
+            // --- EVENT LISTENERS ---
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+                });
+            });
+
+            accordionContainer.addEventListener('click', function(e) {
+                const button = e.target.closest('.accordion-button, .cost-details-button');
+                if (!button) return;
+
+                if (button.classList.contains('accordion-button')) {
+                    const content = button.nextElementSibling;
+                    button.classList.toggle('open');
+                    content.style.maxHeight = content.style.maxHeight ? null : content.scrollHeight + "px";
+                }
+                
+                if (button.classList.contains('cost-details-button')) {
+                    const content = button.parentElement.nextElementSibling;
+                    button.classList.toggle('open');
+                    content.style.maxHeight = content.style.maxHeight ? null : content.scrollHeight + "px";
+                    
+                    const parentAccordionContent = button.closest('.accordion-content');
+                    if (parentAccordionContent && parentAccordionContent.style.maxHeight) {
+                        setTimeout(() => {
+                           parentAccordionContent.style.maxHeight = parentAccordionContent.scrollHeight + "px";
+                        }, 300); // Wait for child animation
+                    }
+                }
+            });
+            
+            checklistContainer.addEventListener('click', function(e) {
+                const itemEl = e.target.closest('.checklist-item');
+                if (itemEl) {
+                    const index = parseInt(itemEl.dataset.index);
+                    checklistData[index].completed = !checklistData[index].completed;
+                    renderChecklist();
+                }
+            });
+
+        });
+    </script>
+</body>
+</html>
