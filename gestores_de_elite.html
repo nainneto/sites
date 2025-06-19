@@ -1,374 +1,508 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import { 
-    getAuth, 
-    onAuthStateChanged, 
-    signInAnonymously,
-    signInWithCustomToken 
-} from 'firebase/auth';
-import { 
-    getFirestore, 
-    collection, 
-    addDoc, 
-    query, 
-    where, 
-    onSnapshot, 
-    doc, 
-    updateDoc,
-    setDoc,
-    getDocs,
-    deleteDoc
-} from 'firebase/firestore';
-import { Sparkles, BookMarked, Logs, User, Users, Shield, Award, TrendingUp, TrendingDown, Bell, PlusCircle, ArrowLeft, X, Check, Clock, ThumbsUp, Star, Trash2 } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Gestor de Elite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @keyframes fade-in-up {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-fade-in-up {
+            animation: fade-in-up 0.5s ease-out forwards;
+        }
+        .modal { display: none; }
+        .modal.is-open { display: flex; }
+        .hidden-view { display: none; }
+    </style>
+</head>
+<body class="bg-gray-50">
 
-// --- CONFIGURAÇÃO DO FIREBASE ---
-// As variáveis __firebase_config e __initial_auth_token serão injetadas pelo ambiente.
-const firebaseConfig = typeof __firebase_config !== 'undefined' 
-    ? JSON.parse(__firebase_config) 
-    : {}; // Coloque sua config aqui para testes locais
-
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-// --- COMPONENTES DE UI ---
-
-const Spinner = ({ size = 'h-12 w-12', color = 'border-indigo-600' }) => (
-    <div className={`flex justify-center items-center`}>
-        <div className={`animate-spin rounded-full ${size} ${color} border-b-2`}></div>
-    </div>
-);
-
-const Alert = ({ message, type = 'success' }) => {
-    const baseClasses = "p-4 rounded-md text-sm mb-4 flex items-center shadow-lg";
-    const typeClasses = {
-        success: "bg-green-100 border border-green-400 text-green-800",
-        error: "bg-red-100 border border-red-400 text-red-800",
-        info: "bg-blue-100 border border-blue-400 text-blue-800",
-    };
-    const Icon = type === 'success' ? Check : (type === 'error' ? X : Sparkles);
-
-    if (!message) return null;
-
-    return (
-        <div className={`${baseClasses} ${typeClasses[type]}`}>
-            <Icon className="h-5 w-5 mr-3 flex-shrink-0" />
-            {message}
-        </div>
-    );
-};
-
-const Modal = ({ isOpen, onClose, title, children }) => {
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative animate-fade-in-up">
-                <div className="flex justify-between items-center p-4 border-b sticky top-0 bg-white z-10">
-                    <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <X size={24} />
+    <!-- CABEÇALHO -->
+    <header class="bg-white shadow-sm sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-900 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-600 mr-3"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.685a.5.5 0 0 0-.6 0l-3.58 2.685a.5.5 0 0 1-.81-.47l1.515-8.526a.5.5 0 0 0-.189-.47l-3.58-2.685a.5.5 0 0 1 .189-.86l3.58.001a.5.5 0 0 0 .47-.189l1.515-8.526a.5.5 0 0 1 .948 0l1.515 8.526a.5.5 0 0 0 .47.189l3.58-.001a.5.5 0 0 1 .189.86l-3.58 2.685a.5.5 0 0 0-.189.47Z"/></svg>
+                    Painel Gestor de Elite
+                </h1>
+                <div class="flex items-center space-x-4">
+                     <button id="open-rules-btn" class="flex items-center text-sm font-medium text-gray-600 hover:text-indigo-600 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="m9 9.5 2 2 4-4"/></svg>
+                        Ver Regras
                     </button>
-                </div>
-                <div className="p-6 overflow-y-auto">
-                    {children}
+                    <div class="text-sm text-gray-500 text-right">
+                       <p>Seu ID de Gestor:</p>
+                       <p id="user-id-display" class="font-mono text-xs">Carregando...</p>
+                    </div>
                 </div>
             </div>
         </div>
-    );
-};
+    </header>
 
-const TagStatus = ({ status }) => {
-    const statusInfo = {
-        'Risco Crítico': { icon: Shield, color: 'bg-red-100 text-red-800 border-red-200', label: 'Risco Crítico' },
-        'Em Declínio': { icon: TrendingDown, color: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'Em Declínio' },
-        'Performance Consistente': { icon: Star, color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Consistente' },
-        'Estável': { icon: TrendingUp, color: 'bg-green-100 text-green-800 border-green-200', label: 'Estável' },
-    };
-    const currentStatus = statusInfo[status] || statusInfo['Estável'];
-    const Icon = currentStatus.icon;
-    return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${currentStatus.color} border`}><Icon className="mr-1.5 h-4 w-4" />{currentStatus.label}</span>;
-};
+    <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+    <main id="main-content" class="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+        <!-- Views serão injetadas aqui pelo JavaScript -->
+        <div id="loading-view">
+            <div class="flex justify-center items-center h-64">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
+            </div>
+        </div>
+        <div id="dashboard-view" class="hidden-view"></div>
+        <div id="client-detail-view" class="hidden-view"></div>
+    </main>
 
-const PlanStatusTag = ({ status }) => {
-    const statusInfo = {
-        'Pendente': { icon: Clock, color: 'bg-gray-100 text-gray-800' },
-        'Aprovado': { icon: ThumbsUp, color: 'bg-blue-100 text-blue-800' },
-        'Rejeitado': { icon: X, color: 'bg-red-100 text-red-800' },
-        'Concluído': { icon: Award, color: 'bg-green-100 text-green-800' },
-    };
-    const current = statusInfo[status] || statusInfo['Pendente'];
-    const Icon = current.icon;
-    return <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${current.color}`}><Icon className="h-4 w-4 mr-1" />{status}</span>;
-};
+    <!-- MODAIS -->
+    <div id="rules-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 justify-center items-center p-4"></div>
+    <div id="form-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 justify-center items-center p-4"></div>
 
-// --- COMPONENTES PRINCIPAIS ---
 
-const RulesPanel = () => {
-    const RuleCard = ({ icon, title, bgColor, children }) => <div className={`rounded-lg border p-4 ${bgColor}`}><h4 className="font-bold text-lg flex items-center mb-2">{React.createElement(icon, { className: "mr-2" })} {title}</h4><div className="text-sm space-y-2">{children}</div></div>;
-    return <div className="space-y-4"><RuleCard icon={Shield} title="Pilar 1: Herói da Reversão" bgColor="bg-red-50 border-red-200"><p><strong>Objetivo:</strong> Salvar contas em risco iminente de cancelamento.</p><p><strong>Gatilho:</strong> Cliente comunica intenção de cancelar, atinge 0 vendas/leads por 30-45 dias, ou está no fim do contrato inicial sem perspectiva de renovação.</p><p><strong>Ação do Gestor:</strong> Apresentar um "Plano de Ação de Reversão" por escrito, com diagnóstico, ações e metas.</p><p><strong>Bonificação:</strong> <strong>R$ 500,00</strong> imediatos + Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></RuleCard><RuleCard icon={TrendingUp} title="Pilar 2: Virada de Jogo" bgColor="bg-yellow-50 border-yellow-200"><p><strong>Objetivo:</strong> Recuperar performance de contas em declínio.</p><p><strong>Gatilho:</strong> Queda de performance significativa (ex: -30% ROAS) por 2 meses consecutivos.</p><p><strong>Ação do Gestor:</strong> Apresentar um "Plano de Otimização" proativo com diagnóstico, ações e metas.</p><p><strong>Bonificação:</strong> <strong>R$ 300,00</strong> imediatos + Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></RuleCard><RuleCard icon={Star} title="Pilar 3: Performance Consistente" bgColor="bg-blue-50 border-blue-200"><p><strong>Objetivo:</strong> Recompensar a excelência contínua.</p><p><strong>Gatilho:</strong> Conta bate metas de KPI por 3 meses consecutivos, com otimizações contínuas.</p><p><strong>Ação do Gestor:</strong> Apresentar "Relatório de Performance Contínua" trimestral.</p><p><strong>Bonificação:</strong> Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></RuleCard><RuleCard icon={Users} title="Regras Gerais" bgColor="bg-gray-50 border-gray-200"><ul className="list-disc list-inside space-y-1"><li><strong>Iniciativa Chave:</strong> Bônus válido apenas para iniciativas proativas e documentadas pelo gestor.</li><li><strong>Documentação Obrigatória:</strong> O plano deve ser apresentado ANTES da implementação.</li><li><strong>Aprovação do Plano:</strong> O plano deve ser enviado ao líder para um "ok" formal.</li></ul></RuleCard></div>;
-};
+    <!-- SCRIPT DO APLICATIVO -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-function ActionPlanForm({ client, db, onFinish, auth }) {
-    const [planType, setPlanType] = useState('');
-    const [planDetails, setPlanDetails] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-    const [error, setError] = useState('');
-    const [aiMessage, setAiMessage] = useState('');
+        // --- VARIÁVEIS GLOBAIS ---
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        
+        let app, auth, db;
+        let currentClient = null;
+        let clientsCache = [];
 
-    useEffect(() => {
-        const typeMap = { 'Risco Crítico': 'Herói da Reversão', 'Em Declínio': 'Virada de Jogo', 'Performance Consistente': 'Performance Consistente' };
-        setPlanType(typeMap[client.status] || '');
-    }, [client.status]);
-    
-    // --- FUNÇÃO GEMINI API ---
-    const generatePlanWithAI = async () => {
-        const problemDescription = window.prompt("Descreva o problema principal do cliente em uma frase (ex: 'As vendas caíram 50% no último mês').");
-        if (!problemDescription) return;
+        // --- ELEMENTOS DO DOM ---
+        const mainContent = document.getElementById('main-content');
+        const loadingView = document.getElementById('loading-view');
+        const dashboardView = document.getElementById('dashboard-view');
+        const clientDetailView = document.getElementById('client-detail-view');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const rulesModal = document.getElementById('rules-modal');
+        const formModal = document.getElementById('form-modal');
+        const openRulesBtn = document.getElementById('open-rules-btn');
 
-        setIsGeneratingAI(true);
-        setAiMessage('✨ A IA está gerando um plano estratégico... Isso pode levar um momento.');
-        setError('');
+        // --- FUNÇÕES DE RENDERIZAÇÃO DE UI ---
 
-        const prompt = `
-            Você é um diretor de estratégia de marketing digital. Um gestor de tráfego precisa de ajuda para criar um plano de ação para um cliente.
+        const renderTagStatus = (status) => {
+            const statusInfo = {
+                'Risco Crítico': { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`, color: 'bg-red-100 text-red-800 border-red-200', label: 'Risco Crítico' },
+                'Em Declínio': { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>`, color: 'bg-yellow-100 text-yellow-800 border-yellow-200', label: 'Em Declínio' },
+                'Performance Consistente': { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`, color: 'bg-blue-100 text-blue-800 border-blue-200', label: 'Consistente' },
+                'Estável': { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`, color: 'bg-green-100 text-green-800 border-green-200', label: 'Estável' },
+            };
+            const s = statusInfo[status] || statusInfo['Estável'];
+            return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${s.color} border">${s.icon}${s.label}</span>`;
+        };
+
+        const renderDashboard = (clients) => {
+            const summary = clients.reduce((acc, c) => {
+                acc.total++;
+                if (c.status === 'Risco Crítico') acc.risk++;
+                if (c.status === 'Em Declínio') acc.decline++;
+                acc.totalFee += c.currentFee;
+                return acc;
+            }, { total: 0, risk: 0, decline: 0, totalFee: 0 });
+
+            const clientCardsHTML = clients.map(client => `
+                <div data-client-id="${client.id}" class="client-card bg-white rounded-xl shadow-lg border border-gray-200 p-5 cursor-pointer hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+                    <div class="flex justify-between items-center">
+                        <h4 class="font-bold text-lg text-gray-800">${client.name}</h4>
+                        ${renderTagStatus(client.status)}
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-dashed">
+                         <div class="flex justify-between items-baseline">
+                            <span class="text-sm text-gray-500">Taxa Atual</span>
+                            <span class="font-bold text-xl ${client.currentFee > client.baseFee ? 'text-green-600' : 'text-gray-700'}">
+                                R$ ${client.currentFee},00
+                            </span>
+                         </div>
+                    </div>
+                </div>
+            `).join('');
             
-            Cliente: ${client.name}
-            Tipo de Plano Solicitado: ${planType}
-            Problema Principal descrito pelo gestor: "${problemDescription}"
-            Status atual do cliente no sistema: ${client.status}
+            dashboardView.innerHTML = `
+                <div class="animate-fade-in-up">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-gray-200"><h3 class="text-sm font-medium text-gray-500">Total de Clientes</h3><p class="mt-1 text-3xl font-semibold text-gray-900">${summary.total}</p></div>
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-red-200"><h3 class="text-sm font-medium text-red-500 flex items-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> Contas com Atenção</h3><p class="mt-1 text-3xl font-semibold text-red-700">${summary.risk + summary.decline}</p></div>
+                        <div class="bg-white p-4 rounded-xl shadow-lg border border-green-200"><h3 class="text-sm font-medium text-green-500">Ganhos Mensais Totais</h3><p class="mt-1 text-3xl font-semibold text-green-700">R$ ${summary.totalFee},00</p></div>
+                    </div>
 
-            Por favor, gere um plano de ação detalhado e profissional. O plano deve ser prático, direto e seguir estritamente o seguinte formato de texto simples:
-
-            1. Diagnóstico:
-            [Faça uma análise concisa do problema com base na descrição e no status do cliente, inferindo possíveis causas.]
-
-            2. Ações Sugeridas:
-            [Liste 3 a 5 ações claras e práticas. Comece cada ação com um hífen. Ex: - Ranquear as campanhas com pior performance...]
-
-            3. Metas Mensuráveis:
-            [Defina 2 a 3 metas claras, com números e prazos. Ex: - Aumentar o ROAS em 15% nos próximos 45 dias.]
-        `;
-
-        try {
-            const chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-            const payload = { contents: chatHistory };
-            const apiKey = ""; // A chave será injetada pelo ambiente
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">Meus Clientes</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${clientCardsHTML}
+                    </div>
+                    ${renderAdminPanel(clients)}
+                </div>
+            `;
             
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+            document.querySelectorAll('.client-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const client = clients.find(c => c.id === card.dataset.clientId);
+                    showClientDetail(client);
+                });
             });
+            attachAdminPanelListeners();
+        };
 
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.statusText}`);
-            }
+        const renderClientDetail = (client, plans) => {
+            const plansHTML = plans.length > 0 ? plans.map(plan => {
+                 const statusInfo = {
+                    'Pendente': { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`, color: 'bg-gray-100 text-gray-800' },
+                    'Aprovado': { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 h-4 w-4"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a2 2 0 0 1 1.79 1.11L15 5.88z"/></svg>`, color: 'bg-blue-100 text-blue-800' },
+                    'Rejeitado': { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 h-4 w-4"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`, color: 'bg-red-100 text-red-800' },
+                    'Concluído': { icon: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 h-4 w-4"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.685a.5.5 0 0 0-.6 0l-3.58 2.685a.5.5 0 0 1-.81-.47l1.515-8.526a.5.5 0 0 0-.189-.47l-3.58-2.685a.5.5 0 0 1 .189-.86l3.58.001a.5.5 0 0 0 .47-.189l1.515-8.526a.5.5 0 0 1 .948 0l1.515 8.526a.5.5 0 0 0 .47.189l3.58-.001a.5.5 0 0 1 .189.86l-3.58 2.685a.5.5 0 0 0-.189.47Z"/></svg>`, color: 'bg-green-100 text-green-800' },
+                 };
+                 const s = statusInfo[plan.status] || statusInfo['Pendente'];
+                 return `
+                    <li class="p-4 border rounded-lg hover:bg-gray-50 transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-indigo-700">${plan.type}</p>
+                                <p class="text-sm text-gray-500">Submetido em: ${new Date(plan.submittedAt.seconds * 1000).toLocaleDateString('pt-BR')}</p>
+                            </div>
+                            <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold ${s.color}">${s.icon} ${plan.status}</span>
+                        </div>
+                        <p class="mt-3 text-gray-700 whitespace-pre-wrap">${plan.planDetails}</p>
+                        ${plan.status === 'Pendente' ? `
+                            <div class="mt-4 flex space-x-2">
+                                <button data-plan-id="${plan.id}" class="approve-plan-btn text-xs bg-green-500 text-white px-2 py-1 rounded">Aprovar</button>
+                                <button data-plan-id="${plan.id}" class="reject-plan-btn text-xs bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button>
+                            </div>` : ''}
+                        ${plan.status === 'Aprovado' ? `
+                            <div class="mt-4 flex">
+                                <button data-plan-id="${plan.id}" data-client-id="${client.id}" class="complete-plan-btn text-xs bg-green-600 text-white px-3 py-1.5 rounded-md flex items-center shadow">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.685a.5.5 0 0 0-.6 0l-3.58 2.685a.5.5 0 0 1-.81-.47l1.515-8.526a.5.5 0 0 0-.189-.47l-3.58-2.685a.5.5 0 0 1 .189-.86l3.58.001a.5.5 0 0 0 .47-.189l1.515-8.526a.5.5 0 0 1 .948 0l1.515 8.526a.5.5 0 0 0 .47.189l3.58-.001a.5.5 0 0 1 .189.86l-3.58 2.685a.5.5 0 0 0-.189.47Z"/></svg>
+                                    Marcar como Concluído
+                                </button>
+                            </div>` : ''}
+                    </li>
+                 `;
+            }).join('') : `<div class="text-center py-8 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><p>Nenhum plano de ação para este cliente ainda.</p><p class="text-sm">Crie o primeiro para iniciar uma bonificação!</p></div>`;
 
-            const result = await response.json();
+            clientDetailView.innerHTML = `
+                 <div class="animate-fade-in-up">
+                    <button id="back-to-dashboard-btn" class="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                        Voltar para o Painel
+                    </button>
+                    <div class="bg-white shadow-lg rounded-xl p-6 mb-6 border border-gray-200"><div class="flex justify-between items-start"><div><h2 class="text-2xl font-bold text-gray-900">${client.name}</h2><div class="mt-2">${renderTagStatus(client.status)}</div></div><div class="text-right"><p class="text-sm text-gray-500">Taxa Base</p><p class="text-lg font-semibold text-gray-700 line-through">R$ ${client.baseFee},00</p><p class="text-sm text-gray-500">Taxa Atual</p><p class="text-2xl font-bold text-green-600">R$ ${client.currentFee},00</p></div></div></div>
+                    <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold text-gray-800">Planos de Ação</h3><button id="open-form-modal-btn" class="flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-indigo-700 transition"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Novo Plano</button></div>
+                    <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-4"><ul class="space-y-4">${plansHTML}</ul></div>
+                </div>
+            `;
+            attachClientDetailListeners(client);
+        };
+        
+        const renderActionPlanForm = (client) => {
+            const typeMap = { 'Risco Crítico': 'Herói da Reversão', 'Em Declínio': 'Virada de Jogo', 'Performance Consistente': 'Performance Consistente' };
+            const suggestedType = typeMap[client.status] || '';
 
-            if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
-                const text = result.candidates[0].content.parts[0].text;
-                setPlanDetails(text);
-                setAiMessage('Plano gerado com sucesso! Revise e ajuste se necessário.');
-            } else {
-                throw new Error("A resposta da IA não contém o conteúdo esperado.");
-            }
-        } catch (err) {
-            console.error("Erro na chamada da Gemini API: ", err);
-            setError('Falha ao gerar o plano com a IA. Verifique o console ou tente novamente.');
-            setAiMessage('');
-        } finally {
-            setIsGeneratingAI(false);
-            setTimeout(() => setAiMessage(''), 5000);
-        }
-    };
+            formModal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative animate-fade-in-up">
+                    <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-white z-10">
+                        <h3 class="text-lg font-semibold text-gray-800">Novo Plano de Ação para ${client.name}</h3>
+                        <button class="close-modal-btn text-gray-400 hover:text-gray-600">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <div class="p-6 overflow-y-auto">
+                        <form id="action-plan-form" class="space-y-4">
+                            <div id="form-messages"></div>
+                            <div>
+                                <label for="planType" class="block text-sm font-medium text-gray-700">Tipo de Plano de Bonificação</label>
+                                <select id="planType" name="planType" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                                    <option value="" disabled>Selecione um tipo...</option>
+                                    <option value="Herói da Reversão" ${suggestedType === 'Herói da Reversão' ? 'selected' : ''}>Herói da Reversão (Salvar Cliente)</option>
+                                    <option value="Virada de Jogo" ${suggestedType === 'Virada de Jogo' ? 'selected' : ''}>Virada de Jogo (Recuperar Performance)</option>
+                                    <option value="Performance Consistente" ${suggestedType === 'Performance Consistente' ? 'selected' : ''}>Performance Consistente (Manter Resultados)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <label for="planDetails" class="block text-sm font-medium text-gray-700">Detalhes do Plano (Diagnóstico, Ações, Metas)</label>
+                                    <button type="button" id="generate-ai-plan-btn" class="flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 transition">
+                                       <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 h-4 w-4"><path d="M15 4.05A8 8 0 1 0 4.05 15"/><path d="M12 2v6l2-2"/><path d="m10 10-2 2"/></svg></span>
+                                       <span class="btn-text">✨ Gerar com IA</span>
+                                    </button>
+                                </div>
+                                <textarea id="planDetails" name="planDetails" rows="10" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Descreva o plano ou use a IA para gerar uma sugestão."></textarea>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" id="submit-plan-btn" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300">
+                                    Submeter Plano
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            attachFormListeners(client);
+            formModal.classList.add('is-open');
+        };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (!planType || !planDetails) {
-            setError('Por favor, preencha todos os campos.');
-            return;
-        }
-        setIsLoading(true);
-        setError('');
-        try {
-            const userId = auth.currentUser?.uid;
-            if (!userId) throw new Error("Usuário não autenticado.");
+        const renderRulesModal = () => {
+             rulesModal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative animate-fade-in-up">
+                    <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-white z-10">
+                        <h3 class="text-lg font-semibold text-gray-800">Regras do Programa 'Gestor de Elite'</h3>
+                        <button class="close-modal-btn text-gray-400 hover:text-gray-600"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+                    </div>
+                    <div class="p-6 overflow-y-auto space-y-4">
+                        <div class="rounded-lg border p-4 bg-red-50 border-red-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Pilar 1: Herói da Reversão</h4><div class="text-sm space-y-2"><p><strong>Objetivo:</strong> Salvar contas em risco iminente de cancelamento.</p><p><strong>Gatilho:</strong> Cliente comunica intenção de cancelar, atinge 0 vendas/leads por 30-45 dias, ou está no fim do contrato inicial sem perspectiva de renovação.</p><p><strong>Ação do Gestor:</strong> Apresentar um "Plano de Ação de Reversão" por escrito, com diagnóstico, ações e metas.</p><p><strong>Bonificação:</strong> <strong>R$ 500,00</strong> imediatos + Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></div></div>
+                        <div class="rounded-lg border p-4 bg-yellow-50 border-yellow-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Pilar 2: Virada de Jogo</h4><div class="text-sm space-y-2"><p><strong>Objetivo:</strong> Recuperar performance de contas em declínio.</p><p><strong>Gatilho:</strong> Queda de performance significativa (ex: -30% ROAS) por 2 meses consecutivos.</p><p><strong>Ação do Gestor:</strong> Apresentar um "Plano de Otimização" proativo com diagnóstico, ações e metas.</p><p><strong>Bonificação:</strong> <strong>R$ 300,00</strong> imediatos + Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></div></div>
+                        <div class="rounded-lg border p-4 bg-blue-50 border-blue-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Pilar 3: Performance Consistente</h4><div class="text-sm space-y-2"><p><strong>Objetivo:</strong> Recompensar a excelência contínua.</p><p><strong>Gatilho:</strong> Conta bate metas de KPI por 3 meses consecutivos, com otimizações contínuas.</p><p><strong>Ação do Gestor:</strong> Apresentar "Relatório de Performance Contínua" trimestral.</p><p><strong>Bonificação:</strong> Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></div></div>
+                        <div class="rounded-lg border p-4 bg-gray-50 border-gray-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Regras Gerais</h4><div class="text-sm space-y-2"><ul class="list-disc list-inside space-y-1"><li><strong>Iniciativa Chave:</strong> Bônus válido apenas para iniciativas proativas e documentadas pelo gestor.</li><li><strong>Documentação Obrigatória:</strong> O plano deve ser apresentado ANTES da implementação.</li><li><strong>Aprovação do Plano:</strong> O plano deve ser enviado ao líder para um "ok" formal.</li></ul></div></div>
+                    </div>
+                </div>
+             `;
+             rulesModal.classList.add('is-open');
+             rulesModal.querySelector('.close-modal-btn').addEventListener('click', () => rulesModal.classList.remove('is-open'));
+        };
 
+        const renderAdminPanel = (clients) => {
+            const clientOptions = clients.map(client => `
+                <div class="flex flex-wrap items-center justify-between p-2 bg-white rounded border">
+                    <span class="font-medium">${client.name}</span>
+                    <div class="flex items-center space-x-2">
+                        <select data-client-id="${client.id}" class="change-status-select text-xs p-1 border rounded-md">
+                            <option ${client.status === 'Estável' ? 'selected' : ''}>Estável</option>
+                            <option ${client.status === 'Risco Crítico' ? 'selected' : ''}>Risco Crítico</option>
+                            <option ${client.status === 'Em Declínio' ? 'selected' : ''}>Em Declínio</option>
+                            <option ${client.status === 'Performance Consistente' ? 'selected' : ''}>Performance Consistente</option>
+                        </select>
+                        <button data-client-id="${client.id}" class="delete-client-btn p-1 text-red-500 hover:text-red-700"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                 <div class="mt-8 p-4 bg-gray-50 rounded-lg border">
+                    <h3 class="text-lg font-semibold flex items-center"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Painel do Administrador (Simulado)</h3>
+                    <div id="admin-alert"></div>
+                    <div class="mt-4 space-y-4 md:flex md:space-y-0 md:space-x-2">
+                        <input id="new-client-name" type="text" placeholder="Nome do Novo Cliente" class="w-full md:w-1/3 p-2 border rounded-md"/>
+                        <select id="new-client-status" class="w-full md:w-1/3 p-2 border rounded-md"><option>Estável</option><option>Risco Crítico</option><option>Em Declínio</option><option>Performance Consistente</option></select>
+                        <button id="add-client-btn" class="w-full md:w-auto bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 disabled:bg-gray-400">Adicionar Cliente</button>
+                    </div>
+                    <div class="mt-4"><h4 class="font-semibold mb-2">Gerenciar Clientes Existentes</h4><div class="space-y-2">${clientOptions}</div></div>
+                </div>
+            `;
+        };
+
+        const showAlert = (containerId, message, type = 'success') => {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const typeClasses = {
+                success: "bg-green-100 border border-green-400 text-green-800",
+                error: "bg-red-100 border border-red-400 text-red-800",
+                info: "bg-blue-100 border border-blue-400 text-blue-800",
+            };
+            container.innerHTML = `<div class="p-4 rounded-md text-sm mb-4 flex items-center shadow-lg ${typeClasses[type]}">${message}</div>`;
+            setTimeout(() => { container.innerHTML = ''; }, 4000);
+        };
+
+        // --- LÓGICA DE NAVEGAÇÃO E DADOS ---
+
+        const showDashboard = () => {
+            dashboardView.classList.remove('hidden-view');
+            clientDetailView.classList.add('hidden-view');
+            loadingView.classList.add('hidden-view');
+        };
+
+        const showClientDetail = (client) => {
+            currentClient = client;
+            dashboardView.classList.add('hidden-view');
+            clientDetailView.classList.remove('hidden-view');
+            clientDetailView.innerHTML = `<div class="flex justify-center items-center h-64"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>`;
+            
             const plansRef = collection(db, `artifacts/${appId}/public/data/actionPlans`);
-            await addDoc(plansRef, { clientId: client.id, clientName: client.name, managerId: userId, type: planType, planDetails, status: 'Pendente', submittedAt: new Date() });
-            onFinish();
-        } catch (err) {
-            console.error("Erro ao submeter plano: ", err);
-            setError('Ocorreu um erro ao enviar o plano. Tente novamente.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <Alert message={error} type="error" />}
-            {aiMessage && <Alert message={aiMessage} type="info" />}
-            <div>
-                <label htmlFor="planType" className="block text-sm font-medium text-gray-700">Tipo de Plano de Bonificação</label>
-                <select id="planType" value={planType} onChange={(e) => setPlanType(e.target.value)} className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                    <option value="" disabled>Selecione um tipo...</option>
-                    <option value="Herói da Reversão">Herói da Reversão (Salvar Cliente)</option>
-                    <option value="Virada de Jogo">Virada de Jogo (Recuperar Performance)</option>
-                    <option value="Performance Consistente">Performance Consistente (Manter Resultados)</option>
-                </select>
-            </div>
-            <div>
-                <div className="flex justify-between items-center mb-1">
-                    <label htmlFor="planDetails" className="block text-sm font-medium text-gray-700">Detalhes do Plano (Diagnóstico, Ações, Metas)</label>
-                    <button type="button" onClick={generatePlanWithAI} disabled={isGeneratingAI} className="flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 transition">
-                       {isGeneratingAI ? <Spinner size="h-4 w-4" /> : <Sparkles className="mr-1 h-4 w-4" />}
-                        {isGeneratingAI ? 'Gerando...' : '✨ Gerar com IA'}
-                    </button>
-                </div>
-                <textarea id="planDetails" rows="10" value={planDetails} onChange={(e) => setPlanDetails(e.target.value)} className="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Descreva o plano ou use a IA para gerar uma sugestão."></textarea>
-            </div>
-            <div className="flex justify-end">
-                <button type="submit" disabled={isLoading} className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300">
-                    {isLoading ? <Spinner size="h-5 w-5" /> : 'Submeter Plano'}
-                </button>
-            </div>
-        </form>
-    );
-}
-
-function ClientDetail({ client, onBack, db, auth }) {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [actionPlans, setActionPlans] = useState([]);
-    const [loadingPlans, setLoadingPlans] = useState(true);
-
-    useEffect(() => {
-        if (!client) return;
-        setLoadingPlans(true);
-        const plansRef = collection(db, `artifacts/${appId}/public/data/actionPlans`);
-        const q = query(plansRef, where("clientId", "==", client.id));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const plansData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            plansData.sort((a, b) => b.submittedAt.toDate() - a.submittedAt.toDate());
-            setActionPlans(plansData);
-            setLoadingPlans(false);
-        }, (error) => { console.error("Erro ao buscar planos: ", error); setLoadingPlans(false); });
-        return () => unsubscribe();
-    }, [client, db, appId]);
-
-    const handlePlanCompletion = (planId) => {
-        const planRef = doc(db, `artifacts/${appId}/public/data/actionPlans`, planId);
-        updateDoc(planRef, { status: "Concluído" });
-        const clientRef = doc(db, `artifacts/${appId}/public/data/clients`, client.id);
-        updateDoc(clientRef, { currentFee: 250 });
-    };
-
-    return (
-        <div className="animate-fade-in-up">
-            <button onClick={onBack} className="flex items-center text-sm text-gray-600 hover:text-gray-900 mb-4"><ArrowLeft size={16} className="mr-2" />Voltar para o Painel</button>
-            <div className="bg-white shadow-lg rounded-xl p-6 mb-6 border border-gray-200"><div className="flex justify-between items-start"><div><h2 className="text-2xl font-bold text-gray-900">{client.name}</h2><div className="mt-2"><TagStatus status={client.status} /></div></div><div className="text-right"><p className="text-sm text-gray-500">Taxa Base</p><p className="text-lg font-semibold text-gray-700 line-through">R$ {client.baseFee},00</p><p className="text-sm text-gray-500">Taxa Atual</p><p className="text-2xl font-bold text-green-600">R$ {client.currentFee},00</p></div></div></div>
-            <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-semibold text-gray-800">Planos de Ação</h3><button onClick={() => setIsModalOpen(true)} className="flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-indigo-700 transition"><PlusCircle size={18} className="mr-2" /> Novo Plano</button></div>
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-4">{loadingPlans ? <Spinner /> : actionPlans.length > 0 ? (<ul className="space-y-4">{actionPlans.map(plan => (<li key={plan.id} className="p-4 border rounded-lg hover:bg-gray-50 transition"><div className="flex justify-between items-start"><div><p className="font-bold text-indigo-700">{plan.type}</p><p className="text-sm text-gray-500">Submetido em: {new Date(plan.submittedAt.seconds * 1000).toLocaleDateString('pt-BR')}</p></div><PlanStatusTag status={plan.status} /></div><p className="mt-3 text-gray-700 whitespace-pre-wrap">{plan.planDetails}</p>{plan.status === 'Pendente' && (<div className="mt-4 flex space-x-2"><button onClick={() => updateDoc(doc(db, `artifacts/${appId}/public/data/actionPlans`, plan.id), {status: 'Aprovado'})} className="text-xs bg-green-500 text-white px-2 py-1 rounded">Aprovar</button><button onClick={() => updateDoc(doc(db, `artifacts/${appId}/public/data/actionPlans`, plan.id), {status: 'Rejeitado'})} className="text-xs bg-red-500 text-white px-2 py-1 rounded">Rejeitar</button></div>)}{plan.status === 'Aprovado' && (<div className="mt-4 flex"><button onClick={() => handlePlanCompletion(plan.id)} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-md flex items-center shadow"><Award size={14} className="mr-1"/> Marcar como Concluído</button></div>)}</li>))}</ul>) : (<div className="text-center py-8 text-gray-500"><Logs size={40} className="mx-auto mb-2"/><p>Nenhum plano de ação para este cliente ainda.</p><p className="text-sm">Crie o primeiro para iniciar uma bonificação!</p></div>)}</div>
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Novo Plano de Ação para ${client.name}`}><ActionPlanForm client={client} db={db} onFinish={() => setIsModalOpen(false)} auth={auth} /></Modal>
-        </div>
-    );
-}
-
-function AdminPanel({ db, clients, auth }) {
-    const [clientName, setClientName] = useState('');
-    const [clientStatus, setClientStatus] = useState('Estável');
-    const [isAdding, setIsAdding] = useState(false);
-    const [showAlert, setShowAlert] = useState('');
-
-    const addClient = async () => {
-        if (!clientName) return;
-        setIsAdding(true);
-        const managerId = auth.currentUser?.uid || "admin_managed";
-        try {
-            await addDoc(collection(db, `artifacts/${appId}/public/data/clients`), { name: clientName, managerId, status: clientStatus, baseFee: 150, currentFee: 150, createdAt: new Date() });
-            setClientName(''); setClientStatus('Estável'); setShowAlert('Cliente adicionado com sucesso!');
-        } catch(error) { console.error("Erro ao adicionar cliente: ", error); setShowAlert('Erro ao adicionar cliente.'); } finally { setIsAdding(false); setTimeout(() => setShowAlert(''), 3000); }
-    };
-    const changeClientStatus = async (clientId, newStatus) => { await updateDoc(doc(db, `artifacts/${appId}/public/data/clients`, clientId), { status: newStatus }); };
-    const deleteClient = async (clientId) => {
-        if(window.confirm('Tem certeza que deseja apagar este cliente e todos os seus planos?')){
-             try {
-                const plansQuery = query(collection(db, `artifacts/${appId}/public/data/actionPlans`), where("clientId", "==", clientId));
-                const plansSnapshot = await getDocs(plansQuery);
-                await Promise.all(plansSnapshot.docs.map(d => deleteDoc(d.ref)));
-                await deleteDoc(doc(db, `artifacts/${appId}/public/data/clients`, clientId));
-                setShowAlert('Cliente e planos apagados.');
-             } catch(e) { console.error("Erro ao apagar:", e); setShowAlert('Erro ao apagar cliente.'); } finally { setTimeout(() => setShowAlert(''), 3000); }
-        }
-    };
-
-    return (
-        <div className="mt-8 p-4 bg-gray-50 rounded-lg border">
-            <h3 className="text-lg font-semibold flex items-center"><Users className="mr-2"/> Painel do Administrador (Simulado)</h3>
-            <Alert message={showAlert} type={showAlert.includes('sucesso') ? 'success' : 'error'} />
-            <div className="mt-4 space-y-4 md:flex md:space-y-0 md:space-x-2"><input type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Nome do Novo Cliente" className="w-full md:w-1/3 p-2 border rounded-md"/><select value={clientStatus} onChange={e => setClientStatus(e.target.value)} className="w-full md:w-1/3 p-2 border rounded-md"><option>Estável</option><option>Risco Crítico</option><option>Em Declínio</option><option>Performance Consistente</option></select><button onClick={addClient} disabled={isAdding} className="w-full md:w-auto bg-gray-700 text-white px-4 py-2 rounded-md hover:bg-gray-800 disabled:bg-gray-400">{isAdding ? "Adicionando..." : "Adicionar Cliente"}</button></div>
-            <div className="mt-4"><h4 className="font-semibold mb-2">Gerenciar Clientes Existentes</h4><div className="space-y-2">{clients.map(client => (<div key={client.id} className="flex flex-wrap items-center justify-between p-2 bg-white rounded border"><span className="font-medium">{client.name}</span><div className="flex items-center space-x-2"><select value={client.status} onChange={e => changeClientStatus(client.id, e.target.value)} className="text-xs p-1 border rounded-md"><option>Estável</option><option>Risco Crítico</option><option>Em Declínio</option><option>Performance Consistente</option></select><button onClick={() => deleteClient(client.id)} className="p-1 text-red-500 hover:text-red-700"><Trash2 size={16}/></button></div></div>))}</div></div>
-        </div>
-    );
-}
-
-function Dashboard({ onClientSelect, db, auth }) {
-    const [clients, setClients] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        if (!auth.currentUser || !db) return;
-        setIsLoading(true);
-        const q = query(collection(db, `artifacts/${appId}/public/data/clients`)); 
-        const unsubscribe = onSnapshot(q, (snapshot) => { setClients(snapshot.docs.map(d => ({ id: d.id, ...d.data() }))); setIsLoading(false); }, (error) => { console.error("Erro ao buscar clientes: ", error); setIsLoading(false); });
-        return () => unsubscribe();
-    }, [auth.currentUser, db, appId]);
-
-    const summary = useMemo(() => clients.reduce((acc, c) => { acc.total++; if (c.status === 'Risco Crítico') acc.risk++; if (c.status === 'Em Declínio') acc.decline++; acc.totalFee += c.currentFee; return acc; }, { total: 0, risk: 0, decline: 0, totalFee: 0 }), [clients]);
-
-    if (isLoading) return <Spinner />;
-
-    return (
-        <div className="animate-fade-in-up">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"><div className="bg-white p-4 rounded-xl shadow-lg border border-gray-200"><h3 className="text-sm font-medium text-gray-500">Total de Clientes</h3><p className="mt-1 text-3xl font-semibold text-gray-900">{summary.total}</p></div><div className="bg-white p-4 rounded-xl shadow-lg border border-red-200"><h3 className="text-sm font-medium text-red-500 flex items-center"><Bell className="mr-2"/> Contas com Atenção</h3><p className="mt-1 text-3xl font-semibold text-red-700">{summary.risk + summary.decline}</p></div><div className="bg-white p-4 rounded-xl shadow-lg border border-green-200"><h3 className="text-sm font-medium text-green-500">Ganhos Mensais Totais</h3><p className="mt-1 text-3xl font-semibold text-green-700">R$ {summary.totalFee},00</p></div></div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Meus Clientes</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{clients.map(client => (<div key={client.id} onClick={() => onClientSelect(client)} className="bg-white rounded-xl shadow-lg border border-gray-200 p-5 cursor-pointer hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"><div className="flex justify-between items-center"><h4 className="font-bold text-lg text-gray-800">{client.name}</h4><TagStatus status={client.status} /></div><div className="mt-4 pt-4 border-t border-dashed"><div className="flex justify-between items-baseline"><span className="text-sm text-gray-500">Taxa Atual</span><span className={`font-bold text-xl ${client.currentFee > client.baseFee ? 'text-green-600' : 'text-gray-700'}`}>R$ {client.currentFee},00</span></div></div></div>))}</div>
-            <AdminPanel db={db} clients={clients} auth={auth} />
-        </div>
-    );
-}
-
-export default function App() {
-    const [db, setDb] = useState(null);
-    const [auth, setAuth] = useState(null);
-    const [isAuthReady, setIsAuthReady] = useState(false);
-    const [selectedClient, setSelectedClient] = useState(null);
-    const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
-
-    useEffect(() => {
-        try {
-            const app = initializeApp(firebaseConfig);
-            const firestoreDb = getFirestore(app);
-            const firestoreAuth = getAuth(app);
-            setDb(firestoreDb); setAuth(firestoreAuth);
-            const unsubscribe = onAuthStateChanged(firestoreAuth, async (user) => {
-                if (!user) {
-                    try { const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; if (token) { await signInWithCustomToken(firestoreAuth, token); } else { await signInAnonymously(firestoreAuth); } } catch (error) { console.error("Erro na autenticação: ", error); }
-                }
-                setIsAuthReady(true);
+            const q = query(plansRef, where("clientId", "==", client.id));
+            onSnapshot(q, (snapshot) => {
+                const plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                plans.sort((a, b) => b.submittedAt.toDate() - a.submittedAt.toDate());
+                const updatedClient = clientsCache.find(c => c.id === client.id) || client; // Pega cliente atualizado
+                renderClientDetail(updatedClient, plans);
             });
-            return () => unsubscribe();
-        } catch (e) { console.error("Erro ao inicializar o Firebase: ", e); }
-    }, []);
+        };
 
-    if (!isAuthReady || !db || !auth) return <div className="h-screen w-screen flex items-center justify-center bg-gray-100"><Spinner /></div>;
-    
-    return (
-        <div className="bg-gray-50 min-h-screen font-sans">
-            <header className="bg-white shadow-sm sticky top-0 z-40"><div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4"><div className="flex justify-between items-center"><h1 className="text-2xl font-bold text-gray-900 flex items-center"><Award className="text-indigo-600 mr-3" size={28}/> Painel Gestor de Elite</h1><div className="flex items-center space-x-4"><button onClick={() => setIsRulesModalOpen(true)} className="flex items-center text-sm font-medium text-gray-600 hover:text-indigo-600 transition"><BookMarked className="mr-2" size={18} />Ver Regras</button><div className="text-sm text-gray-500 text-right"><p>Seu ID de Gestor:</p><p className="font-mono text-xs">{auth.currentUser?.uid}</p></div></div></div></div></header>
-            <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">{selectedClient ? <ClientDetail client={selectedClient} onBack={() => setSelectedClient(null)} db={db} auth={auth} /> : <Dashboard onClientSelect={setSelectedClient} db={db} auth={auth} />}</main>
-            <Modal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} title="Regras do Programa 'Gestor de Elite'"><RulesPanel /></Modal>
-        </div>
-    );
-}
+        const backToDashboard = () => {
+            currentClient = null;
+            showDashboard();
+        };
+
+        // --- LÓGICA DO GEMINI API ---
+        const generatePlanWithAI = async (client, planType, problemDescription) => {
+            const btn = document.getElementById('generate-ai-plan-btn');
+            const btnText = btn.querySelector('.btn-text');
+            const btnIcon = btn.querySelector('.btn-icon');
+            
+            btn.disabled = true;
+            btnText.textContent = 'Gerando...';
+            btnIcon.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>`;
+            showAlert('form-messages', '✨ A IA está gerando um plano estratégico... Isso pode levar um momento.', 'info');
+
+            const prompt = `Você é um diretor de estratégia de marketing digital. Um gestor de tráfego precisa de ajuda para criar um plano de ação para um cliente. Cliente: ${client.name}. Tipo de Plano Solicitado: ${planType}. Problema Principal: "${problemDescription}". Status atual: ${client.status}. Gere um plano de ação detalhado e profissional em texto simples com o formato: 1. Diagnóstico: [análise]. 2. Ações Sugeridas: [3-5 ações com hífen]. 3. Metas Mensuráveis: [2-3 metas com números].`;
+
+            try {
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                const result = await response.json();
+
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    document.getElementById('planDetails').value = result.candidates[0].content.parts[0].text;
+                    showAlert('form-messages', 'Plano gerado com sucesso! Revise e ajuste se necessário.', 'success');
+                } else {
+                    throw new Error("A resposta da IA não contém o conteúdo esperado.");
+                }
+            } catch (err) {
+                console.error("Erro na chamada da Gemini API: ", err);
+                showAlert('form-messages', 'Falha ao gerar o plano com a IA. Tente novamente.', 'error');
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = '✨ Gerar com IA';
+                btnIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 h-4 w-4"><path d="M15 4.05A8 8 0 1 0 4.05 15"/><path d="M12 2v6l2-2"/><path d="m10 10-2 2"/></svg>`;
+            }
+        };
+        
+        // --- EVENT LISTENERS ---
+
+        function attachClientDetailListeners(client) {
+            document.getElementById('back-to-dashboard-btn').addEventListener('click', backToDashboard);
+            document.getElementById('open-form-modal-btn').addEventListener('click', () => renderActionPlanForm(client));
+            
+            document.querySelectorAll('.approve-plan-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                const planId = e.target.dataset.planId;
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/actionPlans`, planId), { status: 'Aprovado' });
+            }));
+            document.querySelectorAll('.reject-plan-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                const planId = e.target.dataset.planId;
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/actionPlans`, planId), { status: 'Rejeitado' });
+            }));
+            document.querySelectorAll('.complete-plan-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                const planId = e.currentTarget.dataset.planId;
+                const clientId = e.currentTarget.dataset.clientId;
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/actionPlans`, planId), { status: 'Concluído' });
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/clients`, clientId), { currentFee: 250 });
+            }));
+        }
+
+        function attachFormListeners(client) {
+            formModal.querySelector('.close-modal-btn').addEventListener('click', () => formModal.classList.remove('is-open'));
+            document.getElementById('generate-ai-plan-btn').addEventListener('click', () => {
+                 const problem = prompt("Descreva o problema principal do cliente em uma frase (ex: 'As vendas caíram 50% no último mês').");
+                 if(problem) {
+                    const planType = document.getElementById('planType').value;
+                    generatePlanWithAI(client, planType, problem);
+                 }
+            });
+            document.getElementById('action-plan-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const btn = document.getElementById('submit-plan-btn');
+                btn.disabled = true;
+                btn.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>`;
+
+                const formData = new FormData(e.target);
+                const planData = {
+                    clientId: client.id,
+                    clientName: client.name,
+                    managerId: auth.currentUser.uid,
+                    type: formData.get('planType'),
+                    planDetails: formData.get('planDetails'),
+                    status: 'Pendente',
+                    submittedAt: new Date(),
+                };
+                if (!planData.type || !planData.planDetails) {
+                    showAlert('form-messages', 'Por favor, preencha todos os campos.', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Submeter Plano';
+                    return;
+                }
+                await addDoc(collection(db, `artifacts/${appId}/public/data/actionPlans`), planData);
+                formModal.classList.remove('is-open');
+            });
+        }
+        
+        function attachAdminPanelListeners() {
+            document.getElementById('add-client-btn').addEventListener('click', async () => {
+                const name = document.getElementById('new-client-name').value;
+                const status = document.getElementById('new-client-status').value;
+                if (!name) return;
+                
+                await addDoc(collection(db, `artifacts/${appId}/public/data/clients`), {
+                    name, status, managerId: auth.currentUser.uid, baseFee: 150, currentFee: 150, createdAt: new Date()
+                });
+                document.getElementById('new-client-name').value = '';
+                showAlert('admin-alert', 'Cliente adicionado com sucesso!', 'success');
+            });
+            document.querySelectorAll('.change-status-select').forEach(sel => sel.addEventListener('change', async (e) => {
+                await updateDoc(doc(db, `artifacts/${appId}/public/data/clients`, e.target.dataset.clientId), { status: e.target.value });
+            }));
+            document.querySelectorAll('.delete-client-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+                const clientId = e.currentTarget.dataset.clientId;
+                if (confirm('Tem certeza que deseja apagar este cliente e todos os seus planos?')) {
+                    const plansQuery = query(collection(db, `artifacts/${appId}/public/data/actionPlans`), where("clientId", "==", clientId));
+                    const plansSnapshot = await getDocs(plansQuery);
+                    await Promise.all(plansSnapshot.docs.map(d => deleteDoc(d.ref)));
+                    await deleteDoc(doc(db, `artifacts/${appId}/public/data/clients`, clientId));
+                    showAlert('admin-alert', 'Cliente e planos apagados.', 'success');
+                }
+            }));
+        }
+
+        // --- INICIALIZAÇÃO ---
+        const init = () => {
+            try {
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userIdDisplay.textContent = user.uid;
+                        const q = query(collection(db, `artifacts/${appId}/public/data/clients`));
+                        onSnapshot(q, (snapshot) => {
+                            clientsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                            if (!currentClient) {
+                                renderDashboard(clientsCache);
+                                showDashboard();
+                            }
+                        });
+                    } else {
+                        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                        if(token) { await signInWithCustomToken(auth, token); } 
+                        else { await signInAnonymously(auth); }
+                    }
+                });
+            } catch (e) {
+                console.error("Erro ao inicializar o Firebase: ", e);
+                mainContent.innerHTML = `<div class="text-red-600 p-8">Erro ao conectar com a base de dados. Verifique a configuração do Firebase.</div>`;
+            }
+            openRulesBtn.addEventListener('click', renderRulesModal);
+            [rulesModal, formModal].forEach(m => m.addEventListener('click', (e) => { if(e.target === m) m.classList.remove('is-open'); }));
+        };
+
+        init();
+
+    </script>
+
+</body>
+</html>
