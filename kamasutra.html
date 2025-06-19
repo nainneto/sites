@@ -143,7 +143,8 @@
                 setLlmLoading(true);
                 setLlmGeneratedText('');
                 try {
-                    const prompt = `Gere um desafio sensual aleatório (verdade ou desafio) para um casal que quer experimentar coisas novas. Inclua os nomes dos jogadores, se possível. Por exemplo: 'Verdade: Qual a sua fantasia mais secreta? Desafio: Beije o seu parceiro(a) no local mais inesperado da casa.' Gere apenas a verdade ou o desafio, sem introduções. Os jogadores são ${player1Name} e ${player2Name}.`;
+                    // Prompt alterado para uma resposta mais concisa (1-2 frases)
+                    const prompt = `Gere uma única e concisa VERDADE ou DESAFIO sensual para um casal. A resposta deve ser uma frase curta. Por exemplo: 'Verdade: Qual a sua fantasia mais secreta?' ou 'Desafio: Beije o seu parceiro(a) no local mais inesperado da casa.' Os jogadores são ${player1Name} e ${player2Name}.`;
                     let chatHistory = [];
                     chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                     const payload = { contents: chatHistory };
@@ -282,13 +283,13 @@
                     {currentChallenge && (
                         <div className="bg-white bg-opacity-20 p-6 rounded-xl shadow-xl backdrop-blur-sm w-full mx-auto my-4 transform transition-all duration-500 scale-100 opacity-100">
                             <h3 className="text-2xl font-bold text-rose-100 mb-3">{currentChallenge.type}!</h3>
-                            {/* Adjusted font size here */}
+                            {/* Ajustado para text-lg para melhor leitura */}
                             <p className="text-lg text-white italic leading-relaxed">{currentChallenge.text}</p>
                             <button
                                 onClick={() => {
                                     setCurrentChallenge(null);
                                     setChosenCategory(null);
-                                    setLlmGeneratedText(''); // Clear LLM text for next turn
+                                    setLlmGeneratedText(''); // Limpar texto do LLM para a próxima rodada
                                     onChallengeComplete();
                                 }}
                                 className="mt-6 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
@@ -317,7 +318,7 @@
 
             const rollDice = () => {
                 setRolling(true);
-                setLlmGeneratedIdea(null); // Clear previous LLM idea
+                setLlmGeneratedIdea(null); // Limpar ideia anterior do LLM
                 const result = {
                     who: diceOptions.who[Math.floor(Math.random() * diceOptions.who.length)],
                     what: diceOptions.what[Math.floor(Math.random() * diceOptions.what.length)],
@@ -337,7 +338,8 @@
                 setLlmLoading(true);
                 setLlmGeneratedIdea(null);
                 try {
-                    const prompt = `Com base em 'quem: ${diceResult.who}', 'o quê: ${diceResult.what}', 'onde: ${diceResult.where}', 'como: ${diceResult.how}', crie uma breve e sugestiva ideia de como executar este desafio de forma criativa e sensual para um casal. Aja como um mestre de jogo. Exemplo: 'Beijo intenso no pescoço do Pedro: Enquanto ele te abraça por trás na cozinha, sussurre algo picante e beije intensamente o pescoço dele, deslizando até o ombro.'`;
+                    // Prompt alterado para ser mais conciso e focado
+                    const prompt = `Crie uma breve e sugestiva ideia (1-2 frases) para um casal executar um desafio com 'quem: ${diceResult.who}', 'o quê: ${diceResult.what}', 'onde: ${diceResult.where}', 'como: ${diceResult.how}'. Seja sensual e criativo.`;
                     let chatHistory = [];
                     chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                     const payload = { contents: chatHistory };
@@ -382,17 +384,17 @@
                             <p className="text-lg text-rose-200 mb-6">Rolam os dados para ver o desafio!</p>
                         ) : (
                             <div className="text-xl text-white space-y-2 mb-6">
-                                {/* Adjusted font size here */}
+                                {/* Ajustado para text-lg */}
                                 <p><span className="font-semibold text-rose-200">Quem:</span> {diceResult.who === 'Ambos' ? `Ambos` : `${diceResult.who}`}</p>
                                 <p><span className="font-semibold text-rose-200">O Quê:</span> {diceResult.what}</p>
                                 <p><span className="font-semibold text-rose-200">Onde:</span> {diceResult.where}</p>
                                 <p><span className="font-semibold text-rose-200">Como:</span> {diceResult.how}</p>
-                                {/* Adjusted font size here */}
-                                <p className="mt-4 text-lg text-rose-100 font-bold">
+                                {/* Ajustado para text-xl */}
+                                <p className="mt-4 text-xl text-rose-100 font-bold">
                                     Desafio: {diceResult.what} {diceResult.how} em {diceResult.where} {diceResult.who === 'Ambos' ? 'com o parceiro(a)' : ''}.
                                 </p>
 
-                                {/* LLM-powered creative idea button and display */}
+                                {/* Botão e exibição de ideia criativa com LLM */}
                                 {!llmGeneratedIdea && !llmLoading && (
                                     <button
                                         onClick={getCreativeIdea}
@@ -408,7 +410,7 @@
                                     </div>
                                 )}
                                 {llmGeneratedIdea && (
-                                    <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-base text-rose-50 italic">
+                                    <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
                                         <span className="font-semibold">Sugestão do ✨Mestre:</span> {llmGeneratedIdea}
                                     </div>
                                 )}
@@ -461,8 +463,8 @@
 
             const drawCard = () => {
                 setShuffling(true);
-                setCurrentCard(null); // Clear previous card
-                setLlmLoading(false); // Ensure LLM loading is off if drawing from fixed set
+                setCurrentCard(null); // Limpar carta anterior
+                setLlmLoading(false); // Garantir que o loading do LLM esteja desativado se estiver a retirar do conjunto fixo
                 setTimeout(() => {
                     const randomIndex = Math.floor(Math.random() * cards.length);
                     setCurrentCard(cards[randomIndex]);
@@ -473,9 +475,10 @@
             // Função para criar uma nova carta com o LLM (Gemini)
             const createLlmCard = async () => {
                 setLlmLoading(true);
-                setCurrentCard(null); // Clear previous card
+                setCurrentCard(null); // Limpar carta anterior
                 try {
-                    const prompt = `Crie uma nova carta para um baralho de prazer de casais. Pode ser uma 'Verdade Secreta', 'Sensação e Toque', ou 'Conexão Emocional'. Crie apenas o texto da pergunta ou desafio, sem introduções. Exemplo: 'O que te faz sentir mais poderoso(a) na cama?' ou 'Com os olhos vendados, descreva o que sente ao tocar meu corpo'.`;
+                    // Prompt alterado: solicitar UMA carta com o tipo e texto conciso, sem múltiplas opções ou formatação complexa.
+                    const prompt = `Crie UMA ÚNICA carta para um baralho de prazer de casais. A carta deve ter um "Tipo" (ex: Desejo Secreto, Sensação e Toque, Conexão Emocional) e um "Texto" conciso (1-2 frases) que seja uma pergunta ou um desafio. Formato esperado: "Tipo: [Seu Tipo Aqui]. Texto: [Seu Texto Curto Aqui]".`;
                     let chatHistory = [];
                     chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                     const payload = { contents: chatHistory };
@@ -492,12 +495,20 @@
                     if (result.candidates && result.candidates.length > 0 &&
                         result.candidates[0].content && result.candidates[0].content.parts &&
                         result.candidates[0].content.parts.length > 0) {
-                        const text = result.candidates[0].content.parts[0].text;
-                        // Try to infer type, or default
+                        const rawText = result.candidates[0].content.parts[0].text;
+                        // Tentativa de parsear o formato "Tipo: [Tipo]. Texto: [Texto]."
+                        const typeMatch = rawText.match(/Tipo:\s*([^.]+)\./i);
+                        const textMatch = rawText.match(/Texto:\s*(.+)/i);
+
                         let type = 'Carta Gerada';
-                        if (text.toLowerCase().includes('verdade secreta')) type = 'Desejo Secreto';
-                        else if (text.toLowerCase().includes('sensação e toque')) type = 'Sensações e Toques';
-                        else if (text.toLowerCase().includes('conexão emocional')) type = 'Conexão Emocional';
+                        let text = 'Não foi possível gerar uma carta clara. Tente novamente!';
+
+                        if (typeMatch && typeMatch[1]) {
+                            type = typeMatch[1].trim();
+                        }
+                        if (textMatch && textMatch[1]) {
+                            text = textMatch[1].trim();
+                        }
 
                         setCurrentCard({ type: type, text: text });
                     } else {
@@ -530,8 +541,8 @@
                                     <p className="text-lg text-rose-200">✨ A criar nova carta...</p>
                                 ) : (
                                     <>
-                                        <p><span className="font-semibold text-rose-200">{currentCard.type}:</span></p>
-                                        {/* Adjusted font size here */}
+                                        <p className="font-semibold text-rose-200 text-lg">{currentCard.type}:</p>
+                                        {/* Ajustado para text-xl */}
                                         <p className="mt-2 text-xl text-rose-100 font-bold italic leading-relaxed">{currentCard.text}</p>
                                     </>
                                 )}
@@ -593,7 +604,8 @@
                 setLlmLoading(true);
                 setLlmGeneratedDetail('');
                 try {
-                    const prompt = `Detalhe a tarefa para um casal de forma sensual e criativa: "${currentStation.task}". Inclua os nomes dos jogadores, se possível: ${player1Name} e ${player2Name}. Seja sugestivo e inspirador.`;
+                    // Prompt alterado para ser mais conciso e focado
+                    const prompt = `Detalhe a tarefa para um casal de forma sensual e criativa em 1-2 frases: "${currentStation.task}". Inclua os nomes dos jogadores, se possível: ${player1Name} e ${player2Name}.`;
                     let chatHistory = [];
                     chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                     const payload = { contents: chatHistory };
@@ -629,7 +641,8 @@
                 setLlmEnvironmentLoading(true);
                 setLlmEnvironmentSuggestion('');
                 try {
-                    const prompt = `Para a tarefa "${currentStation.task}" da Estação "${currentStation.name}", sugira elementos para criar um ambiente sensual e imersivo, como tipos de música, iluminação, ou outros detalhes para o casal. Seja conciso e criativo.`;
+                    // Prompt alterado para ser mais conciso e focado
+                    const prompt = `Para a tarefa "${currentStation.task}" da Estação "${currentStation.name}", sugira elementos para criar um ambiente sensual e imersivo em 1-2 frases. Exemplo: 'Iluminação baixa e música ambiente suave.'`;
                     let chatHistory = [];
                     chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                     const payload = { contents: chatHistory };
@@ -664,12 +677,12 @@
             const nextStation = () => {
                 if (currentStationIndex < stations.length - 1) {
                     setCurrentStationIndex(currentStationIndex + 1);
-                    setLlmGeneratedDetail(''); // Clear detail for next station
-                    setLlmEnvironmentSuggestion(''); // Clear environment suggestion for next station
-                    onChallengeComplete(); // Signal turn change or completion if needed
+                    setLlmGeneratedDetail(''); // Limpar detalhe para a próxima estação
+                    setLlmEnvironmentSuggestion(''); // Limpar sugestão de ambiente para a próxima estação
+                    onChallengeComplete(); // Sinalizar mudança de turno ou conclusão, se necessário
                 } else {
-                    setRouteCompleted(true); // Mark route as completed
-                    onChallengeComplete(); // Signal end of game/turn
+                    setRouteCompleted(true); // Marcar rota como concluída
+                    onChallengeComplete(); // Sinalizar fim do jogo/turno
                 }
             };
 
@@ -677,8 +690,8 @@
                 setCurrentStationIndex(0);
                 setLlmGeneratedDetail('');
                 setLlmEnvironmentSuggestion('');
-                setRouteCompleted(false); // Reset completion state
-                onChallengeComplete(); // Reset turn as well
+                setRouteCompleted(false); // Reiniciar estado de conclusão
+                onChallengeComplete(); // Reiniciar turno também
             };
 
             const currentPlayerName = currentPlayerIndex === 0 ? player1Name : player2Name;
@@ -736,7 +749,7 @@
                         )}
 
                         {llmGeneratedDetail && (
-                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-base text-rose-50 italic">
+                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
                                 <span className="font-semibold">Sugestão do ✨Mestre:</span> {llmGeneratedDetail}
                             </div>
                         )}
@@ -748,7 +761,7 @@
                         )}
 
                         {llmEnvironmentSuggestion && (
-                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-base text-rose-50 italic">
+                            <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
                                 <span className="font-semibold">Ambiente Sugerido:</span> {llmEnvironmentSuggestion}
                             </div>
                         )}
@@ -771,8 +784,8 @@
             const [llmTip, setLlmTip] = React.useState(null); // Novo estado para dicas da IA
             const [llmTipLoading, setLlmTipLoading] = React.useState(false); // Novo estado de loading para dicas
 
-            // Hardcoded positions based on the provided PDF, adjusted for conciseness and clarity
-            // These will be used to create prompts for image generation
+            // Posições hardcoded com base no PDF fornecido, ajustadas para concisão e clareza
+            // Serão usadas para criar prompts para geração de imagens
             const kamasutraPositions = [
                 { name: "Freira", description: "No sexo, é importante sentir-se relaxado e comportar-se livremente, ir além dos limites. A mulher deita-se de costas, com as pernas esticadas e juntas, e o homem se posiciona sobre ela, com o corpo ereto, apoiando-se nos braços para não tocar o corpo da mulher, apenas a penetrando." },
                 { name: "Tigre", description: "Mesmo que seu parceiro costumasse tomar tudo em suas mãos, você não deve ficar de braços cruzados. Acrescente um pouco de paixão, solte as garras e mostre. A mulher se ajoelha de quatro, o homem por trás, com ela arqueando as costas para ele." },
@@ -871,12 +884,12 @@
             // Função para gerar uma imagem de posição do Kamasutra com a IA (Imagen)
             const generateImage = async (positionName, description) => {
                 setDrawing(true);
-                setLlmTip(null); // Clear previous tip when generating new image
-                setLlmTipLoading(false); // Reset tip loading state
+                setLlmTip(null); // Limpar dica anterior ao gerar nova imagem
+                setLlmTipLoading(false); // Reiniciar estado de loading da dica
                 try {
                     const prompt = `Gere uma ilustração simples e clara de dois bonecos (um masculino e um feminino) ou formas humanas básicas em preto e branco, mostrando a posição sexual chamada "${positionName}", descrita como: "${description}". O estilo deve ser um esboço técnico, focando na clareza da pose. Sem rostos ou detalhes explícitos, apenas as formas dos corpos para ilustrar a posição.`;
                     const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1 } };
-                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // Chave da API inserida
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
 
                     const response = await fetch(apiUrl, {
@@ -906,11 +919,12 @@
                 setLlmTipLoading(true);
                 setLlmTip(null);
                 try {
-                    const prompt = `Para a posição Kamasutra chamada "${currentPosition.name}", descrita como "${currentPosition.description}", forneça uma dica criativa e sensual sobre como maximizar o prazer ou a intimidade nesta posição para um casal. Seja conciso.`;
+                    // Prompt alterado para ser mais conciso e focado
+                    const prompt = `Para a posição Kamasutra chamada "${currentPosition.name}", descrita como "${currentPosition.description}", forneça uma dica criativa e sensual sobre como maximizar o prazer ou a intimidade nesta posição para um casal em 1-2 frases.`;
                     let chatHistory = [];
                     chatHistory.push({ role: "user", parts: [{ text: prompt }] });
                     const payload = { contents: chatHistory };
-                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // API Key inserida
+                    const apiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; // Chave da API inserida
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
                     const response = await fetch(apiUrl, {
@@ -941,7 +955,7 @@
                 setDrawing(true);
                 setCurrentPosition(null); // Limpar posição anterior
                 setLlmTip(null); // Limpar dica anterior
-                setLlmTipLoading(false); // Resetar loading da dica
+                setLlmTipLoading(false); // Reiniciar loading da dica
                 setTimeout(() => {
                     const randomIndex = Math.floor(Math.random() * kamasutraPositions.length);
                     const selectedPosition = kamasutraPositions[randomIndex];
@@ -980,10 +994,10 @@
                                             e.target.src = "https://placehold.co/300x200/FFB6C1/FFFFFF?text=Imagem+Indisponível";
                                         }}
                                     />
-                                    {/* Adjusted font size here */}
-                                    <p className="italic leading-relaxed text-lg text-rose-50">{currentPosition.description}</p>
+                                    {/* Ajustado para text-xl para a descrição principal */}
+                                    <p className="italic leading-relaxed text-xl text-rose-50">{currentPosition.description}</p>
 
-                                    {/* LLM-powered tip button and display */}
+                                    {/* Botão e exibição da dica com LLM */}
                                     {!llmTip && !llmTipLoading && (
                                         <button
                                             onClick={generatePositionTip}
@@ -998,7 +1012,7 @@
                                         </div>
                                     )}
                                     {llmTip && (
-                                        <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-base text-rose-50 italic">
+                                        <div className="mt-4 p-4 bg-white bg-opacity-10 rounded-lg text-lg text-rose-50 italic">
                                             <span className="font-semibold">Dica da ✨IA:</span> {llmTip}
                                         </div>
                                     )}
@@ -1016,7 +1030,7 @@
                             <button
                                 onClick={() => {
                                     setCurrentPosition(null);
-                                    setLlmTip(null); // Clear tip on completion
+                                    setLlmTip(null); // Limpar dica ao concluir
                                     onChallengeComplete();
                                 }}
                                 className="mt-4 bg-rose-600 hover:bg-rose-700 text-white font-bold py-3 px-6 rounded-full shadow-md transform transition-transform duration-300 hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-rose-400"
@@ -1176,7 +1190,7 @@
                                         onClick={() => { setCurrentGame('kamasutra'); setScreen('game'); }}
                                         className="bg-orange-600 hover:bg-orange-700 text-white font-bold py-8 px-6 rounded-xl shadow-lg transform transition-transform duration-300 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-400 flex flex-col items-center justify-center"
                                     >
-                                        <span className="text-3xl mb-2">🧘‍♀️</span> {/* Using a yoga/meditation emoji as placeholder for now */}
+                                        <span className="text-3xl mb-2">🧘‍♀️</span> {/* Usando um emoji de ioga/meditação como placeholder por enquanto */}
                                         <span className="text-xl">Posições do Kamasutra</span>
                                         <span className="text-sm opacity-80 mt-1">Explore Novas Formas</span>
                                     </button>
