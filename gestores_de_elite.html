@@ -28,6 +28,38 @@
         .modal { display: none; }
         .modal.is-open { display: flex; }
         .hidden-view { display: none; }
+        /* Style for copyable text blocks */
+        .copy-block {
+            background-color: #f3f4f6;
+            border: 1px solid #d1d5db;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .copy-block:hover {
+            background-color: #e5e7eb;
+        }
+        /* Styles for AI Plan Presentation */
+        .ai-plan-card {
+            border-left-width: 4px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .ai-plan-card ul {
+            list-style-position: inside;
+        }
+        .ai-plan-card ul li {
+            position: relative;
+            padding-left: 1.5rem; /* Space for icon */
+            margin-bottom: 0.5rem;
+        }
+        .ai-plan-card ul li svg {
+            position: absolute;
+            left: 0;
+            top: 2px;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -42,7 +74,7 @@
                 </h1>
                 <div class="flex items-center space-x-4">
                      <button id="open-rules-btn" class="flex items-center text-sm font-medium text-gray-600 hover:text-indigo-600 transition">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="m9 9.5 2 2 4-4"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         Ver Regras
                     </button>
                     <div class="text-sm text-gray-500 text-right">
@@ -69,21 +101,34 @@
     <!-- MODAIS -->
     <div id="rules-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 justify-center items-center p-4"></div>
     <div id="form-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 justify-center items-center p-4"></div>
+    <div id="ai-creatives-modal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 justify-center items-center p-4"></div>
 
 
     <!-- SCRIPT DO APLICATIVO -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- VARIÁVEIS GLOBAIS ---
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = {
+            apiKey: "AIzaSyA6NzhTf5iXEds4L0FDNO7uQBqzWlZQYIQ",
+            authDomain: "gen-lang-client-0590720717.firebaseapp.com",
+            projectId: "gen-lang-client-0590720717",
+            storageBucket: "gen-lang-client-0590720717.firebasestorage.app",
+            messagingSenderId: "124464834031",
+            appId: "1:124464834031:web:e0d399ed95960fcbb1c21a",
+            measurementId: "G-RRMHWMDPR1"
+        };
         
+        // IMPORTANTE: Insira sua chave da API do Google AI Studio / Gemini aqui.
+        // Ela é DIFERENTE da chave do Firebase. Obtenha em https://aistudio.google.com/app/apikey
+        const geminiApiKey = "AIzaSyAScUI9ycl-phYZc6iJM0NRfzX_ns-gl_c"; 
+
         let app, auth, db;
         let currentClient = null;
         let clientsCache = [];
+        let rawAIPlanText = '';
 
         // --- ELEMENTOS DO DOM ---
         const mainContent = document.getElementById('main-content');
@@ -93,6 +138,7 @@
         const userIdDisplay = document.getElementById('user-id-display');
         const rulesModal = document.getElementById('rules-modal');
         const formModal = document.getElementById('form-modal');
+        const aiCreativesModal = document.getElementById('ai-creatives-modal');
         const openRulesBtn = document.getElementById('open-rules-btn');
 
         // --- FUNÇÕES DE RENDERIZAÇÃO DE UI ---
@@ -109,15 +155,15 @@
         };
 
         const renderDashboard = (clients) => {
-            const summary = clients.reduce((acc, c) => {
+            const summary = (clients || []).reduce((acc, c) => {
                 acc.total++;
                 if (c.status === 'Risco Crítico') acc.risk++;
                 if (c.status === 'Em Declínio') acc.decline++;
-                acc.totalFee += c.currentFee;
+                acc.totalFee += c.currentFee || 0;
                 return acc;
             }, { total: 0, risk: 0, decline: 0, totalFee: 0 });
 
-            const clientCardsHTML = clients.map(client => `
+            const clientCardsHTML = (clients || []).map(client => `
                 <div data-client-id="${client.id}" class="client-card bg-white rounded-xl shadow-lg border border-gray-200 p-5 cursor-pointer hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
                     <div class="flex justify-between items-center">
                         <h4 class="font-bold text-lg text-gray-800">${client.name}</h4>
@@ -127,7 +173,7 @@
                          <div class="flex justify-between items-baseline">
                             <span class="text-sm text-gray-500">Taxa Atual</span>
                             <span class="font-bold text-xl ${client.currentFee > client.baseFee ? 'text-green-600' : 'text-gray-700'}">
-                                R$ ${client.currentFee},00
+                                R$ ${client.currentFee || 150},00
                             </span>
                          </div>
                     </div>
@@ -192,7 +238,7 @@
                             </div>` : ''}
                     </li>
                  `;
-            }).join('') : `<div class="text-center py-8 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><p>Nenhum plano de ação para este cliente ainda.</p><p class="text-sm">Crie o primeiro para iniciar uma bonificação!</p></div>`;
+            }).join('') : `<div class="text-center py-8 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg><p>Nenhum plano de ação para este cliente ainda.</p><p class="text-sm">Crie o primeiro para iniciar uma bonificação!</p></div>`;
 
             clientDetailView.innerHTML = `
                  <div class="animate-fade-in-up">
@@ -201,7 +247,19 @@
                         Voltar para o Painel
                     </button>
                     <div class="bg-white shadow-lg rounded-xl p-6 mb-6 border border-gray-200"><div class="flex justify-between items-start"><div><h2 class="text-2xl font-bold text-gray-900">${client.name}</h2><div class="mt-2">${renderTagStatus(client.status)}</div></div><div class="text-right"><p class="text-sm text-gray-500">Taxa Base</p><p class="text-lg font-semibold text-gray-700 line-through">R$ ${client.baseFee},00</p><p class="text-sm text-gray-500">Taxa Atual</p><p class="text-2xl font-bold text-green-600">R$ ${client.currentFee},00</p></div></div></div>
-                    <div class="flex justify-between items-center mb-4"><h3 class="text-xl font-semibold text-gray-800">Planos de Ação</h3><button id="open-form-modal-btn" class="flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-indigo-700 transition"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Novo Plano</button></div>
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                        <h3 class="text-xl font-semibold text-gray-800">Planos de Ação</h3>
+                        <div class="flex gap-2">
+                            <button id="open-ai-creatives-modal-btn" class="flex items-center bg-purple-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-purple-700 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M15 4.05A8 8 0 1 0 4.05 15"/><path d="M12 2v6l2-2"/><path d="m10 10-2 2"/></svg>
+                                ✨ Brainstorm de Criativos
+                            </button>
+                            <button id="open-form-modal-btn" class="flex items-center bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-indigo-700 transition">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                                Novo Plano
+                            </button>
+                        </div>
+                    </div>
                     <div class="bg-white rounded-xl shadow-lg border border-gray-200 p-4"><ul class="space-y-4">${plansHTML}</ul></div>
                 </div>
             `;
@@ -213,7 +271,7 @@
             const suggestedType = typeMap[client.status] || '';
 
             formModal.innerHTML = `
-                <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative animate-fade-in-up">
+                <div class="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col relative animate-fade-in-up">
                     <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-white z-10">
                         <h3 class="text-lg font-semibold text-gray-800">Novo Plano de Ação para ${client.name}</h3>
                         <button class="close-modal-btn text-gray-400 hover:text-gray-600">
@@ -221,10 +279,10 @@
                         </button>
                     </div>
                     <div class="p-6 overflow-y-auto">
-                        <form id="action-plan-form" class="space-y-4">
+                        <form id="action-plan-form" class="space-y-6">
                             <div id="form-messages"></div>
-                            <div>
-                                <label for="planType" class="block text-sm font-medium text-gray-700">Tipo de Plano de Bonificação</label>
+                             <div>
+                                <label for="planType" class="block text-sm font-medium text-gray-700">1. Tipo de Plano de Bonificação</label>
                                 <select id="planType" name="planType" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
                                     <option value="" disabled>Selecione um tipo...</option>
                                     <option value="Herói da Reversão" ${suggestedType === 'Herói da Reversão' ? 'selected' : ''}>Herói da Reversão (Salvar Cliente)</option>
@@ -232,17 +290,38 @@
                                     <option value="Performance Consistente" ${suggestedType === 'Performance Consistente' ? 'selected' : ''}>Performance Consistente (Manter Resultados)</option>
                                 </select>
                             </div>
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <label for="planDetails" class="block text-sm font-medium text-gray-700">Detalhes do Plano (Diagnóstico, Ações, Metas)</label>
-                                    <button type="button" id="generate-ai-plan-btn" class="flex items-center text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 transition">
-                                       <span class="btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 h-4 w-4"><path d="M15 4.05A8 8 0 1 0 4.05 15"/><path d="M12 2v6l2-2"/><path d="m10 10-2 2"/></svg></span>
-                                       <span class="btn-text">✨ Gerar com IA</span>
+                            
+                            <!-- MÓDULO DE IA ESTRATÉGICO -->
+                            <div class="p-4 bg-indigo-50 border border-indigo-200 rounded-lg space-y-4">
+                                <h4 class="font-semibold text-indigo-900">2. Assistente de Estratégia (IA)</h4>
+                                <div>
+                                    <label for="ai-objetivo" class="block text-sm font-medium text-gray-700">Qual o objetivo principal? (Ex: Aumentar vendas, gerar leads)</label>
+                                    <input type="text" id="ai-objetivo" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                </div>
+                                 <div>
+                                    <label for="ai-publico" class="block text-sm font-medium text-gray-700">Quem é o público-alvo? (Ex: Mulheres, 25-40, interessadas em bem-estar)</label>
+                                    <input type="text" id="ai-publico" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                </div>
+                                <div>
+                                    <label for="ai-desafio" class="block text-sm font-medium text-gray-700">Qual o principal desafio ou queda de performance?</label>
+                                    <textarea id="ai-desafio" rows="2" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="Ex: O custo por lead dobrou e o ROAS caiu 50% nos últimos 30 dias."></textarea>
+                                </div>
+                                <div class="flex justify-end">
+                                     <button type="button" id="generate-ai-plan-btn" class="flex items-center text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg shadow-md disabled:bg-indigo-300 transition">
+                                       <span class="btn-icon mr-2"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4.05A8 8 0 1 0 4.05 15"/><path d="M12 2v6l2-2"/><path d="m10 10-2 2"/></svg></span>
+                                       <span class="btn-text">Gerar Plano Estratégico</span>
                                     </button>
                                 </div>
-                                <textarea id="planDetails" name="planDetails" rows="10" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Descreva o plano ou use a IA para gerar uma sugestão."></textarea>
                             </div>
-                            <div class="flex justify-end">
+                            
+                            <!-- APRESENTAÇÃO DO PLANO GERADO PELA IA -->
+                            <div id="ai-plan-presentation" class="hidden-view space-y-4"></div>
+
+                            <div>
+                                <label for="planDetails" class="block text-sm font-medium text-gray-700">3. Detalhes Finais do Plano</label>
+                                <textarea id="planDetails" name="planDetails" rows="10" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md bg-gray-50" placeholder="O plano gerado pela IA aparecerá aqui para sua revisão final."></textarea>
+                            </div>
+                            <div class="flex justify-end pt-4 border-t">
                                 <button type="submit" id="submit-plan-btn" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-300">
                                     Submeter Plano
                                 </button>
@@ -255,6 +334,37 @@
             formModal.classList.add('is-open');
         };
 
+        const renderAICreativesModal = (client) => {
+            aiCreativesModal.innerHTML = `
+                <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative animate-fade-in-up">
+                    <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-white z-10">
+                        <h3 class="text-lg font-semibold text-gray-800">✨ Brainstorm de Criativos para ${client.name}</h3>
+                        <button class="close-modal-btn text-gray-400 hover:text-gray-600">
+                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <div class="p-6 overflow-y-auto">
+                        <form id="ai-creatives-form" class="space-y-4">
+                            <div>
+                                <label for="product-description" class="block text-sm font-medium text-gray-700">Descreva o produto, serviço ou oferta atual do cliente</label>
+                                <textarea id="product-description" name="product-description" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Ex: Curso online de marketing digital para iniciantes com 50% de desconto."></textarea>
+                            </div>
+                             <div class="flex justify-end">
+                                <button type="submit" id="generate-creatives-btn" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:bg-purple-300">
+                                    Gerar Criativos
+                                </button>
+                            </div>
+                        </form>
+                        <div id="ai-creatives-results" class="mt-6">
+                            <!-- Resultados da IA aparecerão aqui -->
+                        </div>
+                    </div>
+                </div>
+            `;
+            attachAICreativesListeners();
+            aiCreativesModal.classList.add('is-open');
+        };
+
         const renderRulesModal = () => {
              rulesModal.innerHTML = `
                 <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative animate-fade-in-up">
@@ -264,7 +374,7 @@
                     </div>
                     <div class="p-6 overflow-y-auto space-y-4">
                         <div class="rounded-lg border p-4 bg-red-50 border-red-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Pilar 1: Herói da Reversão</h4><div class="text-sm space-y-2"><p><strong>Objetivo:</strong> Salvar contas em risco iminente de cancelamento.</p><p><strong>Gatilho:</strong> Cliente comunica intenção de cancelar, atinge 0 vendas/leads por 30-45 dias, ou está no fim do contrato inicial sem perspectiva de renovação.</p><p><strong>Ação do Gestor:</strong> Apresentar um "Plano de Ação de Reversão" por escrito, com diagnóstico, ações e metas.</p><p><strong>Bonificação:</strong> <strong>R$ 500,00</strong> imediatos + Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></div></div>
-                        <div class="rounded-lg border p-4 bg-yellow-50 border-yellow-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Pilar 2: Virada de Jogo</h4><div class="text-sm space-y-2"><p><strong>Objetivo:</strong> Recuperar performance de contas em declínio.</p><p><strong>Gatilho:</strong> Queda de performance significativa (ex: -30% ROAS) por 2 meses consecutivos.</p><p><strong>Ação do Gestor:</strong> Apresentar um "Plano de Otimização" proativo com diagnóstico, ações e metas.</p><p><strong>Bonificação:</strong> <strong>R$ 500,00</strong> imediatos + Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></div></div>
+                        <div class="rounded-lg border p-4 bg-yellow-50 border-yellow-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> Pilar 2: Virada de Jogo</h4><div class="text-sm space-y-2"><p><strong>Objetivo:</strong> Recuperar performance de contas em declínio.</p><p><strong>Gatilho:</strong> Queda de performance significativa (ex: -30% ROAS) por 2 meses consecutivos.</p><p><strong>Ação do Gestor:</strong> Apresentar um "Plano de Otimização" proativo com diagnóstico, ações e metas.</p><p><strong>Bonificação:</strong> <strong>R$ 300,00</strong> imediatos + Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></div></div>
                         <div class="rounded-lg border p-4 bg-blue-50 border-blue-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Pilar 3: Performance Consistente</h4><div class="text-sm space-y-2"><p><strong>Objetivo:</strong> Recompensar a excelência contínua.</p><p><strong>Gatilho:</strong> Conta bate metas de KPI por 3 meses consecutivos, com otimizações contínuas.</p><p><strong>Ação do Gestor:</strong> Apresentar "Relatório de Performance Contínua" trimestral.</p><p><strong>Bonificação:</strong> Aumento da taxa mensal para <strong>R$ 250,00</strong>.</p></div></div>
                         <div class="rounded-lg border p-4 bg-gray-50 border-gray-200"><h4 class="font-bold text-lg flex items-center mb-2"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Regras Gerais</h4><div class="text-sm space-y-2"><ul class="list-disc list-inside space-y-1"><li><strong>Iniciativa Chave:</strong> Bônus válido apenas para iniciativas proativas e documentadas pelo gestor.</li><li><strong>Documentação Obrigatória:</strong> O plano deve ser apresentado ANTES da implementação.</li><li><strong>Aprovação do Plano:</strong> O plano deve ser enviado ao líder para um "ok" formal.</li></ul></div></div>
                     </div>
@@ -275,7 +385,7 @@
         };
 
         const renderAdminPanel = (clients) => {
-            const clientOptions = clients.map(client => `
+            const clientOptions = (clients || []).map(client => `
                 <div class="flex flex-wrap items-center justify-between p-2 bg-white rounded border">
                     <span class="font-medium">${client.name}</span>
                     <div class="flex items-center space-x-2">
@@ -330,7 +440,7 @@
             clientDetailView.classList.remove('hidden-view');
             clientDetailView.innerHTML = `<div class="flex justify-center items-center h-64"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>`;
             
-            const plansRef = collection(db, `artifacts/${appId}/public/data/actionPlans`);
+            const plansRef = collection(db, "actionPlans");
             const q = query(plansRef, where("clientId", "==", client.id));
             onSnapshot(q, (snapshot) => {
                 const plans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -346,40 +456,167 @@
         };
 
         // --- LÓGICA DO GEMINI API ---
-        const generatePlanWithAI = async (client, planType, problemDescription) => {
+
+        const renderAIPlanSuggestion = (text) => {
+            rawAIPlanText = text; // Store the raw text to be used later
+            const presentationContainer = document.getElementById('ai-plan-presentation');
+            presentationContainer.innerHTML = '';
+            
+            const sections = {
+                'Diagnóstico': { color: 'border-yellow-500', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yellow-600 mr-2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>` },
+                'Ações Sugeridas': { color: 'border-blue-500', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600 mr-2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>` },
+                'Metas Mensuráveis': { color: 'border-green-500', icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 mr-2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M22 12h-4"/><path d="M14 12h-4"/><path d="M4 12h4"/><path d="m15 15 2 2"/><path d="m7 7 2 2"/></svg>` }
+            };
+
+            const parsedText = text.split(/(\d\.\s)/).filter(Boolean);
+            let currentSection = '';
+            let content = {};
+            for(let i=0; i < parsedText.length; i+=2) {
+                let header = parsedText[i+1];
+                if(header.includes('Diagnóstico')) currentSection = 'Diagnóstico';
+                if(header.includes('Ações Sugeridas')) currentSection = 'Ações Sugeridas';
+                if(header.includes('Metas Mensuráveis')) currentSection = 'Metas Mensuráveis';
+                if(content[currentSection]) {
+                    content[currentSection] += header.replace(/.+:\s*/,'')
+                } else {
+                    content[currentSection] = header.replace(/.+:\s*/,'');
+                }
+            }
+
+            Object.keys(content).forEach(sectionTitle => {
+                if(sections[sectionTitle]) {
+                    const sectionDiv = document.createElement('div');
+                    sectionDiv.className = `ai-plan-card bg-gray-50 ${sections[sectionTitle].color}`;
+                    
+                    const listItems = content[sectionTitle].split('- ').filter(item => item.trim() !== '').map(item => `<li><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block"><polyline points="20 6 9 17 4 12"></polyline></svg>${item.trim()}</li>`).join('');
+
+                    sectionDiv.innerHTML = `
+                        <h5 class="font-semibold text-gray-800 flex items-center">${sections[sectionTitle].icon} ${sectionTitle}</h5>
+                        <ul class="mt-2 text-gray-700 text-sm">${listItems}</ul>
+                    `;
+                    presentationContainer.appendChild(sectionDiv);
+                }
+            });
+            
+            const usePlanBtn = document.createElement('div');
+            usePlanBtn.innerHTML = `<button type="button" id="use-ai-plan-btn" class="w-full mt-4 text-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">✔ Usar Este Plano</button>`;
+            presentationContainer.appendChild(usePlanBtn);
+            presentationContainer.classList.remove('hidden-view');
+        };
+
+        const generatePlanWithAI = async (client, planType, objective, audience, challenge) => {
+            if (!geminiApiKey || geminiApiKey === "SUA_CHAVE_API_GEMINI_AQUI") {
+                showAlert('form-messages', 'A chave da API do Gemini não foi configurada no código. Por favor, adicione sua chave para usar esta funcionalidade.', 'error');
+                return;
+            }
+
             const btn = document.getElementById('generate-ai-plan-btn');
             const btnText = btn.querySelector('.btn-text');
             const btnIcon = btn.querySelector('.btn-icon');
             
             btn.disabled = true;
             btnText.textContent = 'Gerando...';
-            btnIcon.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-indigo-600"></div>`;
-            showAlert('form-messages', '✨ A IA está gerando um plano estratégico... Isso pode levar um momento.', 'info');
+            btnIcon.innerHTML = `<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>`;
+            showAlert('form-messages', '✨ A IA está buscando a melhor estratégia... Isso pode levar um momento.', 'info');
+            document.getElementById('ai-plan-presentation').classList.add('hidden-view');
 
-            const prompt = `Você é um diretor de estratégia de marketing digital. Um gestor de tráfego precisa de ajuda para criar um plano de ação para um cliente. Cliente: ${client.name}. Tipo de Plano Solicitado: ${planType}. Problema Principal: "${problemDescription}". Status atual: ${client.status}. Gere um plano de ação detalhado e profissional em texto simples com o formato: 1. Diagnóstico: [análise]. 2. Ações Sugeridas: [3-5 ações com hífen]. 3. Metas Mensuráveis: [2-3 metas com números].`;
+            const prompt = `Você é um diretor de estratégia de marketing digital sênior. Crie um plano de ação para um cliente de um gestor de tráfego.
+            - Cliente: ${client.name}
+            - Tipo de Plano Solicitado: ${planType}
+            - Objetivo Principal: "${objective}"
+            - Público-Alvo: "${audience}"
+            - Desafio Atual: "${challenge}"
+            - Status do Cliente no Sistema: ${client.status}
+            Gere um plano de ação detalhado e profissional. Formate a resposta estritamente como texto simples, usando os seguintes cabeçalhos numerados: "1. Diagnóstico:", "2. Ações Sugeridas:", "3. Metas Mensuráveis:". Dentro de "Ações" e "Metas", liste cada item com um hífen na frente.`;
 
             try {
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
                 
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    throw new Error(`API Error: ${response.status} - ${errorBody.error.message}`);
+                }
                 const result = await response.json();
 
                 if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
-                    document.getElementById('planDetails').value = result.candidates[0].content.parts[0].text;
-                    showAlert('form-messages', 'Plano gerado com sucesso! Revise e ajuste se necessário.', 'success');
+                    const text = result.candidates[0].content.parts[0].text;
+                    renderAIPlanSuggestion(text);
+                    showAlert('form-messages', 'Plano gerado! Revise abaixo e clique em "Usar Este Plano".', 'success');
                 } else {
                     throw new Error("A resposta da IA não contém o conteúdo esperado.");
                 }
             } catch (err) {
                 console.error("Erro na chamada da Gemini API: ", err);
-                showAlert('form-messages', 'Falha ao gerar o plano com a IA. Tente novamente.', 'error');
+                showAlert('form-messages', `Falha ao gerar o plano com a IA: ${err.message}`, 'error');
             } finally {
                 btn.disabled = false;
-                btnText.textContent = '✨ Gerar com IA';
-                btnIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-1 h-4 w-4"><path d="M15 4.05A8 8 0 1 0 4.05 15"/><path d="M12 2v6l2-2"/><path d="m10 10-2 2"/></svg>`;
+                btnText.textContent = 'Gerar Plano Estratégico';
+                btnIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M15 4.05A8 8 0 1 0 4.05 15"/><path d="M12 2v6l2-2"/><path d="m10 10-2 2"/></svg>`;
+            }
+        };
+
+        const generateAdCreativesWithAI = async (productDescription) => {
+            if (!geminiApiKey || geminiApiKey === "SUA_CHAVE_API_GEMINI_AQUI") {
+                 document.getElementById('ai-creatives-results').innerHTML = `<div class="p-4 text-red-800 bg-red-100 rounded-lg">A chave da API do Gemini não foi configurada no código.</div>`;
+                 return;
+            }
+
+            const resultsContainer = document.getElementById('ai-creatives-results');
+            const btn = document.getElementById('generate-creatives-btn');
+            btn.disabled = true;
+            btn.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mx-auto"></div>`;
+            resultsContainer.innerHTML = `<div class="p-4 text-center text-blue-800 bg-blue-100 rounded-lg">✨ A IA está criando anúncios incríveis...</div>`;
+
+            const prompt = `Você é um especialista em copywriting para anúncios online (Facebook, Instagram, Google Ads). Crie 3 headlines (títulos) curtos e impactantes e 2 descrições principais para uma campanha de marketing sobre o seguinte produto/oferta: "${productDescription}". As headlines devem ter no máximo 40 caracteres. As descrições devem ser persuasivas, ter no máximo 125 caracteres e incluir uma chamada para ação (CTA). Formate a resposta claramente com os títulos "### Headlines" e "### Descrições", e coloque cada item em uma nova linha começando com um hífen.`;
+
+            try {
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+                
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                 if (!response.ok) {
+                    const errorBody = await response.json();
+                    throw new Error(`API Error: ${response.status} - ${errorBody.error.message}`);
+                }
+                const result = await response.json();
+                
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    const headlinesMatch = text.match(/### Headlines\s*([\s\S]*?)### Descrições/);
+                    const descriptionsMatch = text.match(/### Descrições\s*([\s\S]*)/);
+                    
+                    let htmlResult = `<div class="p-2 bg-green-100 text-green-800 rounded-md text-sm mb-4">💡 Resultado gerado! Clique no texto para copiar.</div>`;
+
+                    if (headlinesMatch && headlinesMatch[1]) {
+                        htmlResult += `<h4 class="font-semibold text-gray-800 mt-4">Títulos Sugeridos (Headlines)</h4>`;
+                        headlinesMatch[1].trim().split('\n').forEach(line => {
+                            if (line.trim().startsWith('-')) {
+                                htmlResult += `<div class="copy-block" title="Clique para copiar">${line.substring(1).trim()}</div>`;
+                            }
+                        });
+                    }
+
+                    if (descriptionsMatch && descriptionsMatch[1]) {
+                        htmlResult += `<h4 class="font-semibold text-gray-800 mt-6">Descrições Sugeridas</h4>`;
+                         descriptionsMatch[1].trim().split('\n').forEach(line => {
+                            if (line.trim().startsWith('-')) {
+                                htmlResult += `<div class="copy-block" title="Clique para copiar">${line.substring(1).trim()}</div>`;
+                            }
+                        });
+                    }
+                    resultsContainer.innerHTML = htmlResult;
+                } else {
+                    throw new Error("A resposta da IA não contém o conteúdo esperado.");
+                }
+
+            } catch (err) {
+                 console.error("Erro na chamada da Gemini API para Criativos: ", err);
+                 resultsContainer.innerHTML = `<div class="p-4 text-red-800 bg-red-100 rounded-lg">Ocorreu um erro ao gerar os criativos: ${err.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Gerar Criativos';
             }
         };
         
@@ -388,32 +625,46 @@
         function attachClientDetailListeners(client) {
             document.getElementById('back-to-dashboard-btn').addEventListener('click', backToDashboard);
             document.getElementById('open-form-modal-btn').addEventListener('click', () => renderActionPlanForm(client));
+            document.getElementById('open-ai-creatives-modal-btn').addEventListener('click', () => renderAICreativesModal(client));
             
             document.querySelectorAll('.approve-plan-btn').forEach(btn => btn.addEventListener('click', async (e) => {
                 const planId = e.target.dataset.planId;
-                await updateDoc(doc(db, `artifacts/${appId}/public/data/actionPlans`, planId), { status: 'Aprovado' });
+                await updateDoc(doc(db, "actionPlans", planId), { status: 'Aprovado' });
             }));
             document.querySelectorAll('.reject-plan-btn').forEach(btn => btn.addEventListener('click', async (e) => {
                 const planId = e.target.dataset.planId;
-                await updateDoc(doc(db, `artifacts/${appId}/public/data/actionPlans`, planId), { status: 'Rejeitado' });
+                await updateDoc(doc(db, "actionPlans", planId), { status: 'Rejeitado' });
             }));
             document.querySelectorAll('.complete-plan-btn').forEach(btn => btn.addEventListener('click', async (e) => {
                 const planId = e.currentTarget.dataset.planId;
                 const clientId = e.currentTarget.dataset.clientId;
-                await updateDoc(doc(db, `artifacts/${appId}/public/data/actionPlans`, planId), { status: 'Concluído' });
-                await updateDoc(doc(db, `artifacts/${appId}/public/data/clients`, clientId), { currentFee: 250 });
+                await updateDoc(doc(db, "actionPlans", planId), { status: 'Concluído' });
+                await updateDoc(doc(db, "clients", clientId), { currentFee: 250 });
             }));
         }
 
         function attachFormListeners(client) {
             formModal.querySelector('.close-modal-btn').addEventListener('click', () => formModal.classList.remove('is-open'));
             document.getElementById('generate-ai-plan-btn').addEventListener('click', () => {
-                 const problem = prompt("Descreva o problema principal do cliente em uma frase (ex: 'As vendas caíram 50% no último mês').");
-                 if(problem) {
+                 const objective = document.getElementById('ai-objetivo').value;
+                 const audience = document.getElementById('ai-publico').value;
+                 const challenge = document.getElementById('ai-desafio').value;
+                 if(objective && audience && challenge) {
                     const planType = document.getElementById('planType').value;
-                    generatePlanWithAI(client, planType, problem);
+                    generatePlanWithAI(client, planType, objective, audience, challenge);
+                 } else {
+                    showAlert('form-messages', 'Por favor, preencha todos os campos do assistente de estratégia para usar a IA.', 'error');
                  }
             });
+            // Listener for the new "Use Plan" button
+            formModal.addEventListener('click', (e) => {
+                if (e.target && e.target.id === 'use-ai-plan-btn') {
+                    document.getElementById('planDetails').value = rawAIPlanText;
+                    document.getElementById('ai-plan-presentation').classList.add('hidden-view');
+                    showAlert('form-messages', 'Plano copiado para a área de detalhes. Revise e submeta.', 'success');
+                }
+            });
+
             document.getElementById('action-plan-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const btn = document.getElementById('submit-plan-btn');
@@ -431,13 +682,46 @@
                     submittedAt: new Date(),
                 };
                 if (!planData.type || !planData.planDetails) {
-                    showAlert('form-messages', 'Por favor, preencha todos os campos.', 'error');
+                    showAlert('form-messages', 'Por favor, preencha todos os campos, incluindo os detalhes do plano.', 'error');
                     btn.disabled = false;
                     btn.innerHTML = 'Submeter Plano';
                     return;
                 }
-                await addDoc(collection(db, `artifacts/${appId}/public/data/actionPlans`), planData);
+                await addDoc(collection(db, "actionPlans"), planData);
                 formModal.classList.remove('is-open');
+            });
+        }
+        
+        function attachAICreativesListeners() {
+            aiCreativesModal.querySelector('.close-modal-btn').addEventListener('click', () => aiCreativesModal.classList.remove('is-open'));
+            document.getElementById('ai-creatives-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const description = document.getElementById('product-description').value;
+                if(description) {
+                    generateAdCreativesWithAI(description);
+                }
+            });
+            // Event delegation for copying text
+            document.getElementById('ai-creatives-results').addEventListener('click', (e) => {
+                if (e.target && e.target.classList.contains('copy-block')) {
+                    const textToCopy = e.target.innerText;
+                    const textArea = document.createElement("textarea");
+                    textArea.value = textToCopy;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    try {
+                        document.execCommand('copy');
+                        e.target.style.backgroundColor = '#d1fae5'; // green-200
+                        e.target.textContent = 'Copiado!';
+                        setTimeout(() => {
+                           e.target.style.backgroundColor = '#f3f4f6';
+                           e.target.textContent = textToCopy;
+                        }, 1000);
+                    } catch (err) {
+                        console.error('Falha ao copiar texto: ', err);
+                    }
+                    document.body.removeChild(textArea);
+                }
             });
         }
         
@@ -447,26 +731,73 @@
                 const status = document.getElementById('new-client-status').value;
                 if (!name) return;
                 
-                await addDoc(collection(db, `artifacts/${appId}/public/data/clients`), {
+                await addDoc(collection(db, "clients"), {
                     name, status, managerId: auth.currentUser.uid, baseFee: 150, currentFee: 150, createdAt: new Date()
                 });
                 document.getElementById('new-client-name').value = '';
                 showAlert('admin-alert', 'Cliente adicionado com sucesso!', 'success');
             });
             document.querySelectorAll('.change-status-select').forEach(sel => sel.addEventListener('change', async (e) => {
-                await updateDoc(doc(db, `artifacts/${appId}/public/data/clients`, e.target.dataset.clientId), { status: e.target.value });
+                await updateDoc(doc(db, "clients", e.target.dataset.clientId), { status: e.target.value });
             }));
             document.querySelectorAll('.delete-client-btn').forEach(btn => btn.addEventListener('click', async (e) => {
                 const clientId = e.currentTarget.dataset.clientId;
                 if (confirm('Tem certeza que deseja apagar este cliente e todos os seus planos?')) {
-                    const plansQuery = query(collection(db, `artifacts/${appId}/public/data/actionPlans`), where("clientId", "==", clientId));
+                    const plansQuery = query(collection(db, "actionPlans"), where("clientId", "==", clientId));
                     const plansSnapshot = await getDocs(plansQuery);
                     await Promise.all(plansSnapshot.docs.map(d => deleteDoc(d.ref)));
-                    await deleteDoc(doc(db, `artifacts/${appId}/public/data/clients`, clientId));
+                    await deleteDoc(doc(db, "clients", clientId));
                     showAlert('admin-alert', 'Cliente e planos apagados.', 'success');
                 }
             }));
         }
+
+        const attachDataListeners = () => {
+            const q = query(collection(db, "clients"));
+            onSnapshot(q, (snapshot) => {
+                clientsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                if (!currentClient) {
+                    renderDashboard(clientsCache);
+                    showDashboard();
+                } else {
+                    const updatedCurrentClient = clientsCache.find(c => c.id === currentClient.id);
+                    if (updatedCurrentClient) {
+                       currentClient = updatedCurrentClient;
+                       showClientDetail(currentClient, []); // Re-render detail view, plans will be fetched inside
+                    } else {
+                        backToDashboard();
+                    }
+                }
+            }, (error) => {
+                console.error("Erro ao buscar dados dos clientes:", error);
+                if (error.code === 'permission-denied') {
+                     mainContent.innerHTML = `
+                        <div class="p-6 bg-red-100 border-l-4 border-red-500 text-red-800 rounded-r-lg animate-fade-in-up">
+                            <h3 class="text-xl font-bold mb-2">Erro de Permissão no Firebase</h3>
+                            <p class="mb-4">O aplicativo não tem permissão para ler os dados. Isso geralmente acontece ao usar o "modo de produção".</p>
+                            <p class="font-semibold mb-2">Para corrigir, siga estes passos no seu <a href="https://console.firebase.google.com/" target="_blank" class="underline hover:text-red-600">Painel do Firebase</a>:</p>
+                            <ol class="list-decimal list-inside space-y-2 mb-4">
+                                <li>Vá para a seção <strong>Firestore Database</strong>.</li>
+                                <li>Clique na aba <strong>Regras (Rules)</strong>.</li>
+                                <li>Apague todo o texto e cole o seguinte código:</li>
+                            </ol>
+                            <pre class="bg-gray-800 text-white p-4 rounded-md text-sm overflow-x-auto"><code>rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}</code></pre>
+                            <p class="mt-4">4. Clique em <strong>Publicar</strong> e atualize esta página em um minuto.</p>
+                        </div>
+                    `;
+                } else {
+                     mainContent.innerHTML = `<div class="text-red-600 p-8">Erro ao buscar dados: ${error.message}</div>`;
+                }
+            });
+        };
+
 
         // --- INICIALIZAÇÃO ---
         const init = () => {
@@ -478,18 +809,12 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userIdDisplay.textContent = user.uid;
-                        const q = query(collection(db, `artifacts/${appId}/public/data/clients`));
-                        onSnapshot(q, (snapshot) => {
-                            clientsCache = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                            if (!currentClient) {
-                                renderDashboard(clientsCache);
-                                showDashboard();
-                            }
-                        });
+                        attachDataListeners();
                     } else {
-                        const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                        if(token) { await signInWithCustomToken(auth, token); } 
-                        else { await signInAnonymously(auth); }
+                        await signInAnonymously(auth).catch(err => {
+                            console.error("Anonymous sign-in failed:", err);
+                            mainContent.innerHTML = `<div class="p-4 bg-red-100 text-red-800 rounded-lg"><b>Falha na autenticação.</b><br>Verifique se o login anônimo está <b>ativado</b> no seu painel do Firebase:<br> 1. Vá para <b>Authentication > Sign-in method</b>.<br> 2. Encontre "Anônimo" e ative-o.</div>`;
+                        });
                     }
                 });
             } catch (e) {
@@ -497,7 +822,7 @@
                 mainContent.innerHTML = `<div class="text-red-600 p-8">Erro ao conectar com a base de dados. Verifique a configuração do Firebase.</div>`;
             }
             openRulesBtn.addEventListener('click', renderRulesModal);
-            [rulesModal, formModal].forEach(m => m.addEventListener('click', (e) => { if(e.target === m) m.classList.remove('is-open'); }));
+            [rulesModal, formModal, aiCreativesModal].forEach(m => m.addEventListener('click', (e) => { if(e.target === m) m.classList.remove('is-open'); }));
         };
 
         init();
