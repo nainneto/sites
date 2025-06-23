@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM com IA Gemini (para WordPress)</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Heroicons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/heroicons/2.1.1/24/outline/heroicons.min.css" rel="stylesheet">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Flatpickr (para seleção de data e hora) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+    <!-- Estilos personalizados -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .kanban-card { cursor: grab; }
+        .kanban-card:active { cursor: grabbing; }
+        .dragging { opacity: 0.5; border: 2px dashed #4f46e5; }
+        .drag-over { background-color: rgba(79, 70, 229, 0.1); }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .gemini-loader {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- Estilos para o Kanban Horizontal --- */
+        #kanban-board-container {
+            overflow-x: auto; /* Habilita a rolagem horizontal */
+            padding-bottom: 1rem; /* Espaço para a barra de rolagem não sobrepor o conteúdo */
+            -webkit-overflow-scrolling: touch; /* Melhora a rolagem em dispositivos móveis */
+        }
+        #kanban-board {
+            display: flex; /* Alinha as colunas horizontalmente */
+            flex-wrap: nowrap; /* Impede que as colunas quebrem para a linha de baixo */
+            gap: 1.5rem; /* Espaçamento entre as colunas */
+            min-width: max-content; /* Garante que o container seja largo o suficiente */
+        }
+        .kanban-column {
+            width: 320px; /* Largura fixa para cada coluna */
+            flex-shrink: 0; /* Impede que as colunas encolham */
+            min-height: 400px; /* Altura mínima */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+    <!-- Container Principal -->
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <!-- Cabeçalho -->
+        <header class="text-center mb-8 fade-in">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800 dark:text-white">CRM com IA Gemini</h1>
+            <p class="text-md text-gray-600 dark:text-gray-400 mt-2">Gerencie seus clientes com sugestões inteligentes.</p>
+        </header>
+
+        <!-- Controles e Filtros -->
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+                <button id="add-contact-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    <span>Adicionar</span>
+                </button>
+                 <button id="export-csv-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+                    <span>Exportar CSV</span>
+                </button>
+            </div>
+            <div class="flex items-center gap-4">
+                 <div class="relative">
+                    <input type="text" id="search-filter" placeholder="Buscar por nome/empresa..." class="w-full sm:w-64 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md py-2 pl-10 pr-4 focus:outline-none focus:ring-indigo-500">
+                    <svg class="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+                </div>
+                <div class="flex items-center rounded-md bg-gray-200 dark:bg-gray-700 p-1">
+                     <button id="kanban-view-btn" class="px-3 py-1 text-sm font-medium rounded-md bg-white dark:bg-gray-500 text-indigo-600 dark:text-white">Kanban</button>
+                     <button id="list-view-btn" class="px-3 py-1 text-sm font-medium rounded-md text-gray-600 dark:text-gray-300">Lista</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área de Lembretes -->
+        <div id="reminders-section" class="mb-6"></div>
+
+        <!-- Área de Visualização -->
+        <div id="view-container">
+            <!-- As visualizações Kanban e Lista serão inseridas aqui -->
+        </div>
+        
+    </div>
+
+    <!-- Modais (sem alterações) -->
+    <!-- Modal do Formulário de Contato -->
+    <div id="contact-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md mx-4 transform transition-all" id="contact-modal-content">
+            <h2 id="form-title" class="text-2xl font-bold mb-6 text-gray-800 dark:text-white">Adicionar Contato</h2>
+            <form id="contact-form">
+                <input type="hidden" id="contact-id">
+                <div class="space-y-4">
+                     <div><label for="name" class="block text-sm font-medium">Nome</label><input type="text" id="name" required class="mt-1 block w-full input-style"></div>
+                     <div><label for="email" class="block text-sm font-medium">Email</label><input type="email" id="email" class="mt-1 block w-full input-style"></div>
+                     <div><label for="phone" class="block text-sm font-medium">Telefone</label><input type="tel" id="phone" class="mt-1 block w-full input-style"></div>
+                     <div><label for="company" class="block text-sm font-medium">Empresa</label><input type="text" id="company" class="mt-1 block w-full input-style"></div>
+                     <div><label for="status" class="block text-sm font-medium">Status</label><select id="status" class="mt-1 block w-full input-style"></select></div>
+                </div>
+                <div class="mt-6 flex justify-end space-x-4">
+                     <button type="button" id="cancel-form-btn" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-md hover:bg-gray-400">Cancelar</button>
+                     <button type="submit" id="submit-button" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal de Lembrete -->
+    <div id="reminder-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 class="text-lg font-bold">Adicionar Lembrete</h3>
+            <input type="hidden" id="reminder-contact-id">
+            <div class="mt-4">
+                <label for="reminder-datetime" class="block text-sm font-medium">Data e Hora</label>
+                <input type="text" id="reminder-datetime" placeholder="Selecione a data e hora" class="mt-1 block w-full input-style">
+            </div>
+            <div class="mt-4">
+                <label for="reminder-notes" class="block text-sm font-medium">Anotações</label>
+                <textarea id="reminder-notes" rows="3" class="mt-1 block w-full input-style"></textarea>
+            </div>
+            <div class="mt-6 flex justify-end space-x-4">
+                <button id="cancel-reminder-btn" type="button" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-md hover:bg-gray-400">Cancelar</button>
+                <button id="save-reminder-btn" type="button" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Salvar Lembrete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação de Exclusão -->
+    <div id="delete-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 class="text-lg font-bold">Confirmar Exclusão</h3>
+            <p class="mt-2 text-sm">Tem certeza? Esta ação não pode ser desfeita.</p>
+            <div class="mt-6 flex justify-end space-x-4">
+                <button id="cancel-delete-btn" class="px-4 py-2 bg-gray-300 dark:bg-gray-600 rounded-md hover:bg-gray-400">Cancelar</button>
+                <button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700">Excluir</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Ação com IA Gemini -->
+    <div id="gemini-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-2xl mx-4 transform transition-all">
+            <div class="flex items-start justify-between">
+                <h3 class="text-xl font-bold flex items-center gap-2">✨ Ações com IA Gemini</h3>
+                <button id="close-gemini-btn" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
+            <div class="mt-4 border-t pt-4">
+                <p class="text-sm font-medium">Contato: <span id="gemini-contact-name" class="font-normal"></span></p>
+                <p class="text-sm font-medium">Status Atual: <span id="gemini-contact-status" class="font-normal"></span></p>
+            </div>
+            <div class="mt-6">
+                <button id="gemini-suggest-step-btn" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM12 21a9 9 0 100-18 9 9 0 000 18z" /></svg>
+                    Sugerir Próximo Passo
+                </button>
+            </div>
+            <div id="gemini-result-container" class="mt-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-md min-h-[100px] hidden">
+                 <div id="gemini-loader" class="mx-auto my-4 hidden"></div>
+                 <div id="gemini-output"></div>
+                 <div id="gemini-email-action" class="mt-4 hidden">
+                    <button id="gemini-generate-email-btn" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md flex items-center justify-center gap-2">
+                        ✨ Gerar Email com Base na Sugestão
+                    </button>
+                    <div id="gemini-email-output" class="mt-4 p-3 bg-gray-100 dark:bg-gray-600 rounded whitespace-pre-wrap"></div>
+                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, serverTimestamp, query, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuração do Firebase com as suas chaves
+        const firebaseConfig = {
+            apiKey: "AIzaSyDr4CDRyDdrVLtg9jatDaNAkkjM21c2zaM",
+            authDomain: "crm-dwplus.firebaseapp.com",
+            projectId: "crm-dwplus",
+            storageBucket: "crm-dwplus.appspot.com",
+            messagingSenderId: "872113779711",
+            appId: "1:872113779711:web:010a56851f79f7a1102dca",
+            measurementId: "G-C7MXBL1BVD"
+        };
+        
+        // ID único para este CRM, para não misturar dados se tiver vários em um mesmo projeto.
+        const crmAppId = 'meu-crm-principal'; 
+
+        // --- Constantes e Estado da Aplicação ---
+        const STATUS_OPTIONS = ['Lead', 'Contato Feito', 'Proposta Enviada', 'Em Negociação', 'Cliente', 'Perdido'];
+        let currentUserId = null;
+        let contacts = [];
+        let currentView = 'kanban';
+        let draggedCard = null;
+        let contactToDeleteId = null;
+        let activeContactForGemini = null;
+        let contactsCollectionRef;
+        let unsubscribeContacts = () => {};
+
+        // --- Inicialização ---
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch(e) {
+            console.error("Erro ao inicializar o Firebase. Verifique se suas chaves em 'firebaseConfig' estão corretas.", e);
+            document.body.innerHTML = `<div class="p-8 text-center text-red-500"><strong>Erro de Configuração do Firebase:</strong> Verifique se as chaves no objeto 'firebaseConfig' foram preenchidas corretamente no código HTML.</div>`;
+        }
+
+        // --- Elementos do DOM ---
+        const viewContainer = document.getElementById('view-container');
+        const searchFilter = document.getElementById('search-filter');
+        const kanbanBtn = document.getElementById('kanban-view-btn');
+        const listBtn = document.getElementById('list-view-btn');
+        const addContactBtn = document.getElementById('add-contact-btn');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const remindersSection = document.getElementById('reminders-section');
+        const contactForm = document.getElementById('contact-form');
+        const contactModal = document.getElementById('contact-modal');
+        const deleteModal = document.getElementById('delete-modal');
+        const reminderModal = document.getElementById('reminder-modal');
+        const geminiModal = document.getElementById('gemini-modal');
+        
+        // --- Autenticação e Setup Inicial ---
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUserId = user.uid;
+                setupAppForUser();
+            } else {
+                try {
+                    await signInAnonymously(auth);
+                } catch (error) {
+                    console.error("Erro no login anônimo:", error);
+                    viewContainer.innerHTML = `<p class="text-center text-red-500">Falha na autenticação com o Firebase.</p>`;
+                }
+            }
+        });
+
+        function setupAppForUser() {
+            const statusSelect = document.getElementById('status');
+            statusSelect.innerHTML = STATUS_OPTIONS.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+            contactsCollectionRef = collection(db, 'artifacts', crmAppId, 'users', currentUserId, 'contacts');
+            listenForContacts();
+            renderView();
+        }
+
+        // --- Funções de Visualização ---
+        function renderView() {
+            if (!viewContainer) return;
+            viewContainer.innerHTML = '';
+            const filteredContacts = getFilteredContacts();
+            if (currentView === 'kanban') {
+                renderKanbanView(filteredContacts);
+            } else {
+                renderListView(filteredContacts);
+            }
+            updateReminderSection();
+        }
+
+        function getFilteredContacts() {
+            const searchTerm = searchFilter.value.toLowerCase();
+            if (!searchTerm) return contacts;
+            return contacts.filter(c => 
+                c.name.toLowerCase().includes(searchTerm) ||
+                (c.company && c.company.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        // --- Lógica Kanban ---
+        function renderKanbanView(filteredContacts) {
+            const kanbanContainerHTML = `
+                <div id="kanban-board-container">
+                    <div id="kanban-board">
+                        ${STATUS_OPTIONS.map(status => `
+                            <div class="bg-gray-200 dark:bg-gray-800 rounded-lg p-4 kanban-column" data-status="${status}">
+                                <h3 class="font-bold text-lg mb-4 text-gray-700 dark:text-gray-300 flex justify-between items-center">
+                                    ${status}
+                                    <span class="text-sm bg-gray-300 dark:bg-gray-700 text-gray-600 dark:text-gray-200 rounded-full px-2 py-1">
+                                        ${filteredContacts.filter(c => c.status === status).length}
+                                    </span>
+                                </h3>
+                                <div class="space-y-4 column-content"></div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>`;
+            viewContainer.innerHTML = kanbanContainerHTML;
+            filteredContacts.forEach(contact => {
+                const column = viewContainer.querySelector(`.kanban-column[data-status="${contact.status}"] .column-content`);
+                if (column) column.appendChild(createContactCard(contact));
+            });
+            addDragAndDropListeners();
+        }
+
+        function createContactCard(contact) {
+            const card = document.createElement('div');
+            card.className = 'bg-white dark:bg-gray-700 rounded-lg p-4 shadow kanban-card';
+            card.draggable = true;
+            card.dataset.id = contact.id;
+            const hasReminder = contact.reminder && new Date(contact.reminder.datetime) > new Date();
+            card.innerHTML = `<div class="flex justify-between items-start">
+                <h4 class="font-bold text-md mb-2 text-gray-900 dark:text-white">${contact.name}</h4>
+                <div class="flex items-center gap-2">
+                 ${hasReminder ? `<svg class="w-5 h-5 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>` : ''}
+                 <button class="gemini-btn text-indigo-500 hover:text-indigo-400" title="Ações com IA">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM12 21a9 9 0 100-18 9 9 0 000 18z" /></svg>
+                 </button>
+                </div>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">${contact.company || '<em>Sem empresa</em>'}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-300">${contact.email || ''}</p>
+                <div class="mt-4 flex justify-end gap-2">
+                    <button class="edit-btn text-xs text-blue-500 hover:underline">Editar</button>
+                    <button class="reminder-btn text-xs text-yellow-500 hover:underline">Lembrete</button>
+                    <button class="delete-btn text-xs text-red-500 hover:underline">Excluir</button>
+                </div>`;
+            return card;
+        }
+
+        function addDragAndDropListeners() {
+            document.querySelectorAll('.kanban-card').forEach(c => {
+                c.addEventListener('dragstart', () => { draggedCard = c; setTimeout(() => c.classList.add('dragging'), 0); });
+                c.addEventListener('dragend', () => { c.classList.remove('dragging'); draggedCard = null; });
+            });
+            document.querySelectorAll('.kanban-column').forEach(col => {
+                col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+                col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+                col.addEventListener('drop', async () => {
+                    col.classList.remove('drag-over');
+                    if (!draggedCard) return;
+                    const newStatus = col.dataset.status, contactId = draggedCard.dataset.id;
+                    col.querySelector('.column-content').appendChild(draggedCard);
+                    await updateDoc(doc(contactsCollectionRef, contactId), { status: newStatus });
+                });
+            });
+        }
+
+        // --- Lógica da Lista ---
+        function renderListView(filteredContacts) {
+             const listHTML = `<div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden"><table class="w-full"><thead class="bg-gray-50 dark:bg-gray-700"><tr>
+                <th class="p-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nome</th>
+                <th class="p-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden sm:table-cell">Empresa</th>
+                <th class="p-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider hidden md:table-cell">Email</th>
+                <th class="p-4 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Ações</th></tr></thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700" id="list-body"></tbody></table></div>`;
+            viewContainer.innerHTML = listHTML;
+            const listBody = viewContainer.querySelector('#list-body');
+            if (filteredContacts.length === 0) {
+                listBody.innerHTML = `<tr><td colspan="4" class="text-center p-6 text-gray-500">Nenhum contato encontrado.</td></tr>`;
+                return;
+            }
+            filteredContacts.forEach(contact => {
+                const row = document.createElement('tr');
+                row.className = 'dark:hover:bg-gray-700 hover:bg-gray-50';
+                row.dataset.id = contact.id;
+                row.innerHTML = `<td class="p-4 whitespace-nowrap"><div class="font-medium text-gray-900 dark:text-white">${contact.name}</div><div class="text-sm text-gray-500">${contact.status}</div></td>
+                    <td class="p-4 whitespace-nowrap hidden sm:table-cell">${contact.company || ''}</td>
+                    <td class="p-4 whitespace-nowrap hidden md:table-cell">${contact.email || ''}</td>
+                    <td class="p-4 whitespace-nowrap text-sm font-medium"><div class="flex items-center gap-4">
+                        <button class="gemini-btn text-indigo-600 hover:text-indigo-900" title="Ações com IA">✨ IA</button>
+                        <button class="edit-btn text-blue-600 hover:text-blue-900">Editar</button>
+                        <button class="reminder-btn text-yellow-600 hover:text-yellow-900">Lembrete</button>
+                        <button class="delete-btn text-red-600 hover:text-red-900">Excluir</button>
+                    </div></td>`;
+                listBody.appendChild(row);
+            });
+        }
+        
+        // --- Lógica de Lembretes ---
+        function updateReminderSection() {
+            const now = new Date();
+            const upcomingReminders = contacts.filter(c => c.reminder && new Date(c.reminder.datetime) >= now).sort((a, b) => new Date(a.reminder.datetime) - new Date(b.reminder.datetime)).slice(0, 3);
+            if (upcomingReminders.length === 0) { remindersSection.innerHTML = ''; return; }
+            remindersSection.innerHTML = `<h3 class="text-xl font-bold mb-3 text-gray-800 dark:text-white">Próximos Lembretes</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">${upcomingReminders.map(c => `
+                <div class="bg-yellow-100 dark:bg-yellow-900/40 border-l-4 border-yellow-500 p-4 rounded-r-lg shadow">
+                   <p class="font-bold text-yellow-800 dark:text-yellow-200">${c.name}</p>
+                   <p class="text-sm text-yellow-700 dark:text-yellow-300">${new Date(c.reminder.datetime).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}</p>
+                   <p class="text-sm mt-1 text-yellow-600 dark:text-yellow-400">${c.reminder.notes||''}</p>
+                </div>`).join('')}</div>`;
+        }
+        
+        // --- Listeners do Firebase ---
+        function listenForContacts() {
+            if (!contactsCollectionRef) return;
+            unsubscribeContacts();
+            unsubscribeContacts = onSnapshot(query(contactsCollectionRef), (snapshot) => {
+                contacts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                contacts.sort((a, b) => (a.createdAt?.toDate() || 0) - (b.createdAt?.toDate() || 0));
+                renderView();
+            });
+        }
+        
+        // --- Funções CRUD e Ações ---
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('contact-id').value;
+            const contactData = { name: document.getElementById('name').value, email: document.getElementById('email').value, phone: document.getElementById('phone').value, company: document.getElementById('company').value, status: document.getElementById('status').value, updatedAt: serverTimestamp() };
+            if (id) { await updateDoc(doc(contactsCollectionRef, id), contactData); } else { await addDoc(contactsCollectionRef, { ...contactData, createdAt: serverTimestamp() }); }
+            closeContactModal();
+        }
+        
+        async function handleDeleteSubmit() { if (contactToDeleteId) await deleteDoc(doc(contactsCollectionRef, contactToDeleteId)); closeDeleteModal(); }
+        async function handleReminderSubmit() {
+            const contactId = document.getElementById('reminder-contact-id').value;
+            const reminderData = { datetime: document.getElementById('reminder-datetime')._flatpickr.selectedDates[0]?.toISOString(), notes: document.getElementById('reminder-notes').value };
+            if (!reminderData.datetime) return alert("Por favor, selecione uma data e hora.");
+            await updateDoc(doc(contactsCollectionRef, contactId), { reminder: reminderData });
+            closeReminderModal();
+        }
+        function exportToCSV() {
+            const headers = ['Nome', 'Email', 'Telefone', 'Empresa', 'Status'];
+            const rows = getFilteredContacts().map(c => [c.name, c.email, c.phone, c.company, c.status]);
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", "contatos_crm.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- Lógica da IA Gemini ---
+        async function callGeminiAPI(prompt) {
+            const apiKey = firebaseConfig.apiKey; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.statusText}`);
+                }
+                const result = await response.json();
+                return result.candidates[0].content.parts[0].text;
+            } catch (error) {
+                console.error("Erro na chamada da API Gemini:", error);
+                return "Desculpe, não foi possível obter uma sugestão no momento.";
+            }
+        }
+
+        async function suggestNextStep() {
+            if (!activeContactForGemini) return;
+            
+            const { name, company, status } = activeContactForGemini;
+            const prompt = `Como um especialista em vendas B2B, sugira o próximo passo ideal para o contato de CRM a seguir. Forneça uma ação clara, concisa e prática.
+            - Nome do Contato: ${name}
+            - Empresa: ${company || 'Não informada'}
+            - Status Atual: ${status}
+            
+            Próximo passo sugerido:`;
+            
+            const resultContainer = document.getElementById('gemini-result-container');
+            const outputDiv = document.getElementById('gemini-output');
+            const loader = document.getElementById('gemini-loader');
+            const emailActionDiv = document.getElementById('gemini-email-action');
+            
+            resultContainer.style.display = 'block';
+            outputDiv.innerHTML = '';
+            emailActionDiv.style.display = 'none';
+            loader.style.display = 'block';
+
+            const suggestion = await callGeminiAPI(prompt);
+            
+            loader.style.display = 'none';
+            outputDiv.innerText = suggestion;
+            emailActionDiv.style.display = 'block'; 
+        }
+        
+        async function generateEmail() {
+             if (!activeContactForGemini) return;
+
+            const suggestion = document.getElementById('gemini-output').innerText;
+            const { name, email } = activeContactForGemini;
+            
+            if (!suggestion || suggestion.includes("Desculpe")) {
+                alert("Gere uma sugestão de próximo passo primeiro.");
+                return;
+            }
+
+            const prompt = `Com base na seguinte sugestão de ação de vendas: "${suggestion}", escreva um rascunho de e-mail profissional e amigável para o contato "${name}". O e-mail deve ser curto e ter um call-to-action claro. O email do contato é ${email || 'não informado'}. Deixe um espaço para eu colocar meu nome no final.`;
+            
+            const emailOutputDiv = document.getElementById('gemini-email-output');
+            const generateEmailBtn = document.getElementById('gemini-generate-email-btn');
+
+            emailOutputDiv.innerHTML = '';
+            generateEmailBtn.disabled = true;
+            generateEmailBtn.innerHTML = '<div class="gemini-loader"></div> Gerando...';
+
+            const emailDraft = await callGeminiAPI(prompt);
+
+            generateEmailBtn.disabled = false;
+            generateEmailBtn.innerHTML = '✨ Gerar Email com Base na Sugestão';
+            emailOutputDiv.innerText = emailDraft;
+        }
+
+        // --- Funções de Modal ---
+        function openContactModal(id=null) {
+            contactForm.reset();
+            document.getElementById('form-title').textContent = id ? 'Editar Contato' : 'Adicionar Contato';
+            if (id) {
+                const c = contacts.find(c => c.id === id);
+                document.getElementById('contact-id').value = c.id;
+                document.getElementById('name').value = c.name;
+                document.getElementById('email').value = c.email||'';
+                document.getElementById('phone').value = c.phone||'';
+                document.getElementById('company').value = c.company||'';
+                document.getElementById('status').value = c.status;
+            } else {
+                 document.getElementById('contact-id').value = '';
+            }
+            contactModal.classList.remove('hidden');
+        }
+        function closeContactModal() { contactModal.classList.add('hidden'); }
+        function openDeleteModal(id) { contactToDeleteId = id; deleteModal.classList.remove('hidden'); }
+        function closeDeleteModal() { contactToDeleteId = null; deleteModal.classList.add('hidden'); }
+        function openReminderModal(id) {
+            const c = contacts.find(c => c.id === id);
+            document.getElementById('reminder-contact-id').value = id;
+            document.getElementById('reminder-notes').value = c.reminder?.notes||'';
+            const fp = flatpickr("#reminder-datetime", { enableTime: true, dateFormat: "Y-m-d H:i", defaultDate: c.reminder?.datetime });
+            fp.open();
+            reminderModal.classList.remove('hidden');
+        }
+        function closeReminderModal() { reminderModal.classList.add('hidden'); }
+        function openGeminiModal(id) {
+            activeContactForGemini = contacts.find(c => c.id === id);
+            if (!activeContactForGemini) return;
+            document.getElementById('gemini-contact-name').textContent = activeContactForGemini.name;
+            document.getElementById('gemini-contact-status').textContent = activeContactForGemini.status;
+            document.getElementById('gemini-result-container').style.display = 'none';
+            document.getElementById('gemini-output').innerHTML = '';
+            document.getElementById('gemini-email-output').innerHTML = '';
+            document.getElementById('gemini-email-action').style.display = 'none';
+            geminiModal.classList.remove('hidden');
+        }
+        function closeGeminiModal() { geminiModal.classList.add('hidden'); activeContactForGemini = null; }
+        
+
+        // --- Event Listeners ---
+        addContactBtn.addEventListener('click', () => openContactModal());
+        exportCsvBtn.addEventListener('click', exportToCSV);
+        searchFilter.addEventListener('input', renderView);
+        kanbanBtn.addEventListener('click', () => { currentView = 'kanban'; renderView(); kanbanBtn.classList.add('bg-white','dark:bg-gray-500'); listBtn.classList.remove('bg-white','dark:bg-gray-500'); });
+        listBtn.addEventListener('click', () => { currentView = 'list'; renderView(); listBtn.classList.add('bg-white','dark:bg-gray-500'); kanbanBtn.classList.remove('bg-white','dark:bg-gray-500'); });
+
+        viewContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const card = btn.closest('[data-id]');
+            if (!card) return;
+            const id = card.dataset.id;
+            if (btn.matches('.edit-btn')) openContactModal(id);
+            if (btn.matches('.delete-btn')) openDeleteModal(id);
+            if (btn.matches('.reminder-btn')) openReminderModal(id);
+            if (btn.matches('.gemini-btn')) openGeminiModal(id);
+        });
+        
+        document.getElementById('cancel-form-btn').addEventListener('click', closeContactModal);
+        document.getElementById('confirm-delete-btn').addEventListener('click', handleDeleteSubmit);
+        document.getElementById('cancel-delete-btn').addEventListener('click', closeDeleteModal);
+        document.getElementById('save-reminder-btn').addEventListener('click', handleReminderSubmit);
+        document.getElementById('cancel-reminder-btn').addEventListener('click', closeReminderModal);
+        document.getElementById('close-gemini-btn').addEventListener('click', closeGeminiModal);
+        document.getElementById('gemini-suggest-step-btn').addEventListener('click', suggestNextStep);
+        document.getElementById('gemini-generate-email-btn').addEventListener('click', generateEmail);
+
+        contactForm.addEventListener('submit', handleFormSubmit);
+        
+        document.querySelectorAll('.input-style').forEach(el => { el.classList.add('bg-gray-50', 'dark:bg-gray-700', 'border', 'border-gray-300', 'dark:border-gray-600', 'rounded-md', 'shadow-sm', 'py-2', 'px-3', 'focus:outline-none', 'focus:ring-indigo-500', 'focus:border-indigo-500', 'sm:text-sm'); });
+    </script>
+</body>
+</html>
