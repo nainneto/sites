@@ -1,0 +1,2011 @@
+/* global __firebase_config, __app_id, __initial_auth_token */
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Home, ArrowLeftRight, Plus, X, Search, ArrowUpCircle, ArrowDownCircle, User, Users, Briefcase, DollarSign, Calendar, Clock, Repeat, TrendingUp, Hash, Bell, History, Database, ChevronDown, ChevronsLeft, ChevronsRight, Trash2, Edit, Banknote, Filter, CheckCircle, XCircle, Info, Copy, AlertTriangle, RotateCw, Download, Target, Lightbulb, Upload, LogIn, LogOut, AlertCircle } from 'lucide-react';
+import { ComposedChart, Bar, Line, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { initializeApp } from 'firebase/app';
+import { getAuth, onAuthStateChanged, signInAnonymously, signOut, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, collection, query, writeBatch } from 'firebase/firestore';
+
+// --- CONFIGURAÇÃO DO FIREBASE ---
+const firebaseConfig = typeof __firebase_config !== 'undefined'
+  ? JSON.parse(__firebase_config)
+  : {
+      apiKey: "AIzaSyACyXlXyMSy2HF_EZrZTcMLte7yq-T3IyY",
+      authDomain: "rise-finance.firebaseapp.com",
+      projectId: "rise-finance",
+      storageBucket: "rise-finance.appspot.com",
+      messagingSenderId: "1015075814153",
+      appId: "1:1015075814153:web:6fe5612f3e056a762ef1d8"
+    };
+
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+// --- DADOS INICIAIS ---
+const initialDbData = {
+    incomeCategories: ['Serviço', 'Comissão', 'Reembolso'],
+    expenseCategories: ['Colaborador', 'Pró Labore', 'Imposto', 'Reembolso', 'Comissão', 'Ferramenta', 'Taxa'],
+    services: ['SEO', 'Criação de Site', 'Tráfego Pago', 'Criação de LPs', 'Implantação de CRM', 'Edição de Vídeos', 'Consultoria em Vendas', 'Implementação de atendimento por IA', 'Automação de processos', 'Social Media'],
+    tools: ['Clickup', 'Capcut', 'Chat GPT', 'Google Workspace', 'Gemini'],
+    clientNames: ['Edilson Carvalho', 'Ruan Sales', 'Roberto Oliveira', 'Bruno Cavalcante', 'Gabriel Sarti', 'Ana Paula Paim', 'Kamilla Santana', 'Driveway Plus', 'Menina Bonita', 'Projetou', 'Vinicius Honório', 'Mário Timbó', 'Benc Store', 'Faus Digital', 'Rodrigo Barbosa', 'Pedro Rezende', 'JET Multimarcas', 'Cidade Nova', 'La Ferrê', 'Adam Abbas', 'NGSX', 'Mateus Almeida', 'Cabine Digital', 'Univest'],
+    payers: ['Angelo', 'Nain'],
+    clientStatuses: ['Ativo', 'Pausado', 'Cancelou'],
+    messageTags: ['M7', 'Follow-up 1', 'Lembrete'],
+    clientNiches: ['Médico', 'Nutrição', 'Enfermagem', 'Arquiteta', 'EUA', 'Corretora', 'Moda', 'Perpétuo', 'Lançamento', 'Loja de Iphone', 'Agência', 'Personal Trainer', 'Georreferenciamento', 'Loja de veículos', 'Material de construção', 'Segurança Cibernética', 'Infoproduto', 'Psicólogo', 'Consórcio'],
+    clientOrigins: ['Prospecção', 'Indicação', 'Tráfego', 'Orgânico', 'Contrate um subido'],
+    collaboratorFunctions: ['Gestor de Tráfego', 'Copywriter', 'Designer', 'Editor de Vídeo', 'Social Media'],
+    squads: ['Growth', 'Produto', 'Vendas', 'Diretoria'],
+    paymentTypes: ['Fixo', 'Variável', 'Fixo + Variável'],
+    variablePaymentTypes: ['R$', '%'],
+    variableCriteriaOptions: ['Por Cliente', 'Por Venda', 'Por Projeto', 'Participação nos Lucros'],
+    currencies: ['BRL', 'USD', 'EUR'],
+    contractDurations: { '30d': '30 dias (renovação automática)', '1': '1 mês', '3': '3 meses', '6': '6 meses', '12': '12 meses' },
+};
+
+// --- COMPONENTES DE UI REUTILIZÁVEIS ---
+const Card = ({ children, className = '', onClick }) => (
+    <div onClick={onClick} className={`bg-slate-800/50 border border-slate-700 rounded-xl shadow-lg p-4 transition-all duration-200 ${className} ${onClick ? 'cursor-pointer hover:border-blue-500/50 hover:bg-slate-800' : ''}`}>
+        {children}
+    </div>
+);
+
+const customRoundUp = (value) => {
+    if (!value || value <= 0) return 0;
+    if (value < 100) return Math.ceil(value);
+    if (value < 1000) return Math.ceil(value / 10) * 10;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(value)) - 1);
+    return Math.ceil(value / magnitude) * magnitude;
+};
+
+const CurrencyDisplay = ({ value, currency, className = '', round = false }) => {
+    const displayValue = round ? customRoundUp(value || 0) : (value || 0);
+    const formattedValue = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: currency || 'BRL' }).format(displayValue);
+    return <span className={className}>{formattedValue}</span>;
+};
+
+const SearchableSelect = ({ options = [], value, onChange, placeholder = "Selecione...", zIndex = 10 }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const ref = useRef(null);
+
+    const filteredOptions = useMemo(() =>
+        options.filter(option => option && option.toLowerCase().includes(searchTerm.toLowerCase())),
+    [options, searchTerm]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (ref.current && !ref.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    return (
+        <div className="relative" ref={ref} style={{ zIndex: isOpen ? zIndex + 1 : zIndex }}>
+            <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full p-3 text-left border border-slate-600 rounded-lg bg-slate-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 truncate">
+                {value || <span className="text-slate-400">{placeholder}</span>}
+            </button>
+            {isOpen && (
+                <div className="absolute mt-1 w-full bg-slate-700 border border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto" style={{ zIndex: zIndex + 2 }}>
+                    <div className="p-2">
+                        <input
+                            type="text"
+                            placeholder="Pesquisar..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full p-2 border border-slate-500 rounded-md bg-slate-800 text-white"
+                        />
+                    </div>
+                    <ul className="py-1">
+                        {filteredOptions.map((option, index) => (
+                            <li
+                                key={`${option}-${index}`}
+                                onClick={() => {
+                                    onChange(option);
+                                    setIsOpen(false);
+                                    setSearchTerm("");
+                                }}
+                                className="px-4 py-2 text-white hover:bg-slate-600 cursor-pointer"
+                            >
+                                {option}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const MultiSearchableSelect = ({ options = [], value = [], onChange, placeholder = "Selecione...", zIndex = 10 }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const ref = useRef(null);
+
+    const filteredOptions = useMemo(() =>
+        options.filter(option =>
+            option && option.toLowerCase().includes(searchTerm.toLowerCase()) && !value.includes(option)
+        ),
+    [options, searchTerm, value]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (ref.current && !ref.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const handleSelect = (option) => {
+        onChange([...value, option]);
+    };
+
+    const handleRemove = (option) => {
+        onChange(value.filter(item => item !== option));
+    };
+
+    return (
+        <div className="relative" ref={ref} style={{ zIndex: isOpen ? zIndex + 1 : zIndex }}>
+            <div onClick={() => setIsOpen(!isOpen)} className="w-full p-2 min-h-[48px] flex flex-wrap gap-2 items-center border border-slate-600 rounded-lg bg-slate-900 text-white cursor-pointer">
+                {value.length > 0 ? value.map(item => (
+                    <span key={item} className="flex items-center gap-1 bg-blue-600 text-white text-xs font-semibold px-2 py-1 rounded">
+                        {item}
+                        <button onClick={(e) => { e.stopPropagation(); handleRemove(item); }} className="hover:text-red-400"><X size={14} /></button>
+                    </span>
+                )) : <span className="text-slate-400 px-1">{placeholder}</span>}
+            </div>
+            {isOpen && (
+                <div className="absolute mt-1 w-full bg-slate-700 border border-slate-600 rounded-lg shadow-lg max-h-60 overflow-y-auto" style={{ zIndex: zIndex + 2 }}>
+                    <div className="p-2">
+                        <input
+                            type="text"
+                            placeholder="Pesquisar..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full p-2 border border-slate-500 rounded-md bg-slate-800 text-white"
+                        />
+                    </div>
+                    <ul className="py-1">
+                        {filteredOptions.map((option, index) => (
+                            <li
+                                key={`${option}-${index}`}
+                                onClick={() => handleSelect(option)}
+                                className="px-4 py-2 text-white hover:bg-slate-600 cursor-pointer"
+                            >
+                                {option}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
+
+const CustomPeriodControl = ({ onApply, onClose }) => {
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const ref = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (ref.current && !ref.current.contains(event.target)) {
+                onClose();
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [onClose]);
+
+    const handleApply = () => {
+        if (startDate && endDate) {
+            onApply({ start: startDate, end: endDate });
+            onClose();
+        }
+    };
+
+    return (
+        <div ref={ref} className="absolute right-0 mt-2 w-72 bg-slate-700 border border-slate-600 rounded-lg shadow-lg z-20 p-4 space-y-3">
+            <button onClick={() => { onApply('this_year'); onClose(); }} className="w-full text-left p-2 hover:bg-slate-600 rounded-md">Este Ano</button>
+            <button onClick={() => { onApply('all_time'); onClose(); }} className="w-full text-left p-2 hover:bg-slate-600 rounded-md">Todo o Período</button>
+            <div className="border-t border-slate-600 pt-3 space-y-2">
+                <p className="text-sm font-semibold">Selecionar Intervalo:</p>
+                <div>
+                    <label className="text-xs text-slate-400">Início</label>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 border border-slate-500 rounded-md bg-slate-800 text-white" />
+                </div>
+                <div>
+                    <label className="text-xs text-slate-400">Fim</label>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 border border-slate-500 rounded-md bg-slate-800 text-white" />
+                </div>
+                <button onClick={handleApply} className="w-full bg-blue-600 text-white font-bold py-2 rounded-md hover:bg-blue-700">Aplicar</button>
+            </div>
+        </div>
+    );
+};
+
+const DonutChartCard = ({ title, data }) => {
+    const COLORS = ['#3b82f6', '#10b981', '#f97316', '#ec4899', '#8b5cf6', '#facc15', '#6b7280', '#ef4444'];
+
+    if (!data || data.length === 0) {
+        return (
+            <Card>
+                <h3 className="text-md font-semibold text-white mb-2">{title}</h3>
+                <div className="flex items-center justify-center h-48 text-slate-400">Sem dados</div>
+            </Card>
+        )
+    }
+
+    const RADIAN = Math.PI / 180;
+    const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+        if (percent < 0.07) return null;
+        const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+        return (
+            <text x={x} y={y} fill="white" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="bold">
+                {`${(percent * 100).toFixed(0)}%`}
+            </text>
+        );
+    };
+
+    return (
+        <Card>
+            <h3 className="text-md font-semibold text-white mb-2">{title}</h3>
+            <div style={{ width: '100%', height: 200 }}>
+                <ResponsiveContainer>
+                    <PieChart>
+                        <Pie data={data} dataKey="value" nameKey="name" cx="40%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={5} labelLine={false} label={renderCustomizedLabel}>
+                            {data.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#e2e8f0' }} itemStyle={{ color: '#e2e8f0' }} formatter={(value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)} />
+                        <Legend iconSize={10} layout="vertical" verticalAlign="middle" align="right" wrapperStyle={{ fontSize: '12px', color: '#9ca3af' }} />
+                    </PieChart>
+                </ResponsiveContainer>
+            </div>
+        </Card>
+    );
+};
+
+// --- TELAS PRINCIPAIS ---
+const Dashboard = ({ allTransactions, allClients }) => {
+    const [period, setPeriod] = useState({ type: 'this_month' });
+    const [isCustomPeriodOpen, setIsCustomPeriodOpen] = useState(false);
+    const [showAllMonths, setShowAllMonths] = useState(false);
+
+    const renewalClients = useMemo(() => {
+        const now = new Date();
+        const fifteenDaysFromNow = new Date();
+        fifteenDaysFromNow.setDate(now.getDate() + 15);
+
+        return allClients
+            .filter(c => c.status === 'Ativo' && c.lastRenewalDate && c.contractDuration)
+            .map(c => {
+                const lastRenewal = new Date(c.lastRenewalDate + 'T00:00:00');
+                let nextRenewalDate;
+                if (c.contractDuration === '30d') {
+                    nextRenewalDate = new Date(lastRenewal.setDate(lastRenewal.getDate() + 30));
+                } else {
+                    const duration = parseInt(c.contractDuration, 10);
+                    nextRenewalDate = new Date(lastRenewal.setMonth(lastRenewal.getMonth() + duration));
+                }
+                return { ...c, nextRenewalDate };
+            })
+            .filter(c => c.nextRenewalDate < fifteenDaysFromNow)
+            .sort((a, b) => a.nextRenewalDate - b.nextRenewalDate);
+    }, [allClients]);
+
+    const filteredData = useMemo(() => {
+        const now = new Date();
+        let startDate, endDate;
+
+        switch (period.type) {
+            case 'this_month':
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                break;
+            case 'last_month':
+                startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+                break;
+            case 'this_year':
+                startDate = new Date(now.getFullYear(), 0, 1);
+                endDate = new Date(now.getFullYear(), 11, 31);
+                break;
+            case 'custom':
+                startDate = new Date(period.start + 'T00:00:00');
+                endDate = new Date(period.end + 'T23:59:59');
+                break;
+            case 'all_time':
+            default:
+                return { transactions: allTransactions, clients: allClients };
+        }
+        
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setHours(23, 59, 59, 999);
+
+        const transactions = allTransactions.filter(t => {
+            const tDate = new Date(t.date);
+            return tDate >= startDate && tDate <= endDate;
+        });
+
+        return { transactions, clients: allClients };
+    }, [period, allTransactions, allClients]);
+
+    const metrics = useMemo(() => {
+        const { transactions, clients } = filteredData;
+        const faturamentoTotal = transactions.filter(t => t.type === 'entrada').reduce((sum, t) => sum + t.value, 0);
+        const despesaTotal = transactions.filter(t => t.type === 'saida').reduce((sum, t) => sum + t.value, 0);
+        const margemLucro = faturamentoTotal > 0 ? ((faturamentoTotal - despesaTotal) / faturamentoTotal) * 100 : 0;
+        const mrr = clients.filter(c => c.status === 'Ativo').reduce((sum, c) => sum + (c.mrr || 0), 0);
+        const clientesAtivos = clients.filter(c => c.status === 'Ativo').length;
+
+        const nainOnlyClients = ['Kamilla Santana', 'Ruan Sales', 'Driveway Plus', 'Ana Paula Paim'];
+        const angeloOnlyClients = ['Menina Bonita', 'Edilson Carvalho'];
+        let faturamentoNain = 0;
+        let faturamentoAngelo = 0;
+        transactions.filter(t => t.type === 'entrada').forEach(t => {
+            if (nainOnlyClients.includes(t.client)) faturamentoNain += t.value;
+            else if (angeloOnlyClients.includes(t.client)) faturamentoAngelo += t.value;
+            else {
+                faturamentoNain += t.value / 2;
+                faturamentoAngelo += t.value / 2;
+            }
+        });
+
+        const today = new Date();
+        const totalActiveTime = clients.reduce((sum, client) => {
+            if (!client.entryDate) return sum;
+            const entryDate = new Date(client.entryDate);
+            const endDate = client.exitDate ? new Date(client.exitDate) : today;
+            const diffTime = Math.abs(endDate - entryDate);
+            return sum + (diffTime / (1000 * 60 * 60 * 24 * 30.44));
+        }, 0);
+        const lifetime = clients.length > 0 ? totalActiveTime / clients.length : 0;
+
+        const clientLTVs = clients.map(client => {
+            return allTransactions
+                .filter(t => t.type === 'entrada' && t.client === client.name)
+                .reduce((sum, t) => sum + t.value, 0);
+        });
+        const ltvMedio = clientLTVs.length > 0 ? clientLTVs.reduce((sum, ltv) => sum + ltv, 0) / clientLTVs.length : 0;
+
+        return { faturamentoTotal, despesaTotal, margemLucro, mrr, clientesAtivos, faturamentoNain, faturamentoAngelo, lifetime, ltvMedio };
+    }, [filteredData, allTransactions]);
+
+    const monthlyMetrics = useMemo(() => {
+        const data = [];
+        const now = new Date();
+        for (let i = 0; i < 12; i++) {
+            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthStart = date;
+            const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+
+            const monthTransactions = allTransactions.filter(t => {
+                const tDate = new Date(t.date);
+                return tDate >= monthStart && tDate <= monthEnd;
+            });
+
+            const activeAtStartOfMonth = allClients.filter(c => c.entryDate && new Date(c.entryDate) < monthStart && (!c.exitDate || new Date(c.exitDate) >= monthStart)).length;
+            const churnedThisMonth = allClients.filter(c => c.exitDate && new Date(c.exitDate) >= monthStart && new Date(c.exitDate) <= monthEnd).length;
+            const churnRate = activeAtStartOfMonth > 0 ? (churnedThisMonth / activeAtStartOfMonth) * 100 : 0;
+
+            const faturamento = monthTransactions.filter(t => t.type === 'entrada').reduce((sum, t) => sum + t.value, 0);
+            const despesas = monthTransactions.filter(t => t.type === 'saida').reduce((sum, t) => sum + t.value, 0);
+            const novosClientes = allClients.filter(c => c.entryDate && new Date(c.entryDate) >= monthStart && new Date(c.entryDate) <= monthEnd).length;
+            const entradasDoMes = monthTransactions.filter(t => t.type === 'entrada');
+            const ticketMedio = entradasDoMes.length > 0 ? faturamento / entradasDoMes.length : 0;
+            const clientesAtivosNoMes = activeAtStartOfMonth + novosClientes;
+
+            if (faturamento > 0 || despesas > 0 || novosClientes > 0 || churnedThisMonth > 0) {
+                data.push({
+                    name: date.toLocaleString('pt-BR', { month: 'short', year: '2-digit' }),
+                    Faturamento: faturamento,
+                    Despesa: despesas,
+                    Lucro: faturamento - despesas,
+                    'Margem de Lucro': faturamento > 0 ? ((faturamento - despesas) / faturamento) * 100 : 0,
+                    'Clientes Ativos': clientesAtivosNoMes,
+                    'Ticket Médio': ticketMedio,
+                    'Novos Clientes': novosClientes,
+                    'Churn': churnedThisMonth,
+                    'Taxa de Churn': churnRate,
+                });
+            }
+        }
+        return data.reverse();
+    }, [allTransactions, allClients]);
+
+    const chartData = useMemo(() => {
+        const { transactions, clients } = filteredData;
+        const revenueByService = transactions.filter(t => t.type === 'entrada' && t.category === 'Serviço')
+            .reduce((acc, t) => {
+                const serviceName = t.services?.join(', ') || 'N/A';
+                acc[serviceName] = (acc[serviceName] || 0) + t.value;
+                return acc;
+            }, {});
+
+        const expenseByCategory = transactions.filter(t => t.type === 'saida')
+            .reduce((acc, t) => {
+                const key = t.category === 'Ferramenta' ? t.tool : t.category;
+                acc[key] = (acc[key] || 0) + t.value;
+                return acc;
+            }, {});
+
+        const clientsByNiche = clients.reduce((acc, c) => {
+            acc[c.niche] = (acc[c.niche] || 0) + 1;
+            return acc;
+        }, {});
+
+        const clientsByOrigin = clients.reduce((acc, c) => {
+            acc[c.origin] = (acc[c.origin] || 0) + 1;
+            return acc;
+        }, {});
+
+        const formatForChart = (data) => Object.entries(data).map(([name, value]) => ({ name, value }));
+
+        return {
+            revenueByService: formatForChart(revenueByService),
+            expenseByCategory: formatForChart(expenseByCategory),
+            clientsByNiche: formatForChart(clientsByNiche),
+            clientsByOrigin: formatForChart(clientsByOrigin),
+        };
+    }, [filteredData]);
+
+
+    const MetricCard = ({ title, value, isCurrency = true, unit = '', className = '' }) => (
+        <Card className={className}>
+            <h3 className="text-sm font-medium text-slate-400">{title}</h3>
+            {isCurrency ? (
+                <CurrencyDisplay value={value} currency="BRL" className="text-xl font-bold text-white" round={true} />
+            ) : (
+                <span className="text-xl font-bold text-white">{value.toFixed(unit === '%' ? 2 : 0)}{unit}</span>
+            )}
+        </Card>
+    );
+
+    const handleCustomPeriodApply = (selection) => {
+        if (typeof selection === 'string') {
+            setPeriod({ type: selection });
+        } else {
+            setPeriod({ type: 'custom', start: selection.start, end: selection.end });
+        }
+    };
+
+    const visibleMonths = showAllMonths ? monthlyMetrics : monthlyMetrics.slice(-3);
+
+    return (
+        <div className="space-y-6 p-4 sm:p-6">
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={() => setPeriod({ type: 'this_month' })} className={`px-3 py-1 rounded-md text-sm font-medium ${period.type === 'this_month' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>Este Mês</button>
+                    <button onClick={() => setPeriod({ type: 'last_month' })} className={`px-3 py-1 rounded-md text-sm font-medium ${period.type === 'last_month' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>Mês Passado</button>
+                    <div className="relative">
+                        <button onClick={() => setIsCustomPeriodOpen(!isCustomPeriodOpen)} className={`px-3 py-1 rounded-md text-sm font-medium flex items-center gap-1 ${['this_year', 'all_time', 'custom'].includes(period.type) ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                            Personalizado <ChevronDown size={16} />
+                        </button>
+                        {isCustomPeriodOpen && <CustomPeriodControl onApply={handleCustomPeriodApply} onClose={() => setIsCustomPeriodOpen(false)} />}
+                    </div>
+                </div>
+            </div>
+            
+            {renewalClients.length > 0 && (
+                <Card className="border-yellow-500/50">
+                    <h3 className="font-bold text-lg text-yellow-400 mb-2 flex items-center gap-2"><AlertCircle size={20}/> Alertas de Renovação</h3>
+                    <div className="space-y-2">
+                        {renewalClients.map(client => (
+                            <div key={client.id} className={`flex justify-between items-center text-sm p-2 rounded-md ${new Date(client.nextRenewalDate) < new Date() ? 'bg-red-500/20' : 'bg-yellow-500/20'}`}>
+                                <span className="font-medium text-slate-200">{client.name}</span>
+                                <span className={new Date(client.nextRenewalDate) < new Date() ? 'text-red-300' : 'text-yellow-300'}>{client.nextRenewalDate.toLocaleDateString('pt-BR')}</span>
+                            </div>
+                        ))}
+                    </div>
+                </Card>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <MetricCard title="Faturamento" value={metrics.faturamentoTotal} className="bg-green-500/10 border-green-500/30" />
+                <MetricCard title="Despesa" value={metrics.despesaTotal} className="bg-red-500/10 border-red-500/30" />
+                <MetricCard title="Margem de Lucro" value={metrics.margemLucro} isCurrency={false} unit="%" className="bg-blue-500/10 border-blue-500/30" />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                <MetricCard title="Clientes Ativos" value={metrics.clientesAtivos} isCurrency={false} />
+                <MetricCard title="MRR" value={metrics.mrr} />
+                <MetricCard title="LTV Médio" value={metrics.ltvMedio} />
+                <MetricCard title="Lifetime" value={metrics.lifetime} isCurrency={false} unit=" meses" />
+            </div>
+            <Card>
+                <h3 className="text-sm font-medium text-slate-400 mb-3">Faturamento por Sócio (Período)</h3>
+                <div className="w-full bg-slate-700 rounded-full h-8 flex overflow-hidden">
+                    <div style={{ width: `${(metrics.faturamentoAngelo / (metrics.faturamentoAngelo + metrics.faturamentoNain || 1)) * 100}%` }} className="bg-blue-500 flex items-center justify-center text-xs font-bold text-white transition-all duration-500">
+                        <div className="truncate px-2">Angelo: <CurrencyDisplay value={metrics.faturamentoAngelo} round={true} /></div>
+                    </div>
+                    <div style={{ width: `${(metrics.faturamentoNain / (metrics.faturamentoAngelo + metrics.faturamentoNain || 1)) * 100}%` }} className="bg-teal-500 flex items-center justify-center text-xs font-bold text-white transition-all duration-500">
+                        <div className="truncate px-2">Nain: <CurrencyDisplay value={metrics.faturamentoNain} round={true} /></div>
+                    </div>
+                </div>
+            </Card>
+
+            <Card>
+                <h3 className="text-lg font-semibold mb-4 text-white">Desempenho Mensal</h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="text-xs text-slate-400 uppercase bg-slate-800">
+                            <tr>
+                                <th className="px-4 py-3">Mês</th>
+                                <th className="px-4 py-3">Faturamento</th>
+                                <th className="px-4 py-3">Despesa</th>
+                                <th className="px-4 py-3">Margem</th>
+                                <th className="px-4 py-3">Ticket Médio</th>
+                                <th className="px-4 py-3">Clientes Ativos</th>
+                                <th className="px-4 py-3">Novos Clientes</th>
+                                <th className="px-4 py-3">Churn</th>
+                                <th className="px-4 py-3">Taxa de Churn</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {visibleMonths.map(m => (
+                                <tr key={m.name} className="border-b border-slate-700">
+                                    <td className="px-4 py-3 font-medium text-white">{m.name}</td>
+                                    <td className="px-4 py-3 text-green-400"><CurrencyDisplay value={m.Faturamento} /></td>
+                                    <td className="px-4 py-3 text-red-400"><CurrencyDisplay value={m.Despesa} /></td>
+                                    <td className={`px-4 py-3 font-bold ${m['Margem de Lucro'] >= 0 ? 'text-blue-400' : 'text-red-500'}`}>{m['Margem de Lucro'].toFixed(1)}%</td>
+                                    <td className="px-4 py-3"><CurrencyDisplay value={m['Ticket Médio']} /></td>
+                                    <td className="px-4 py-3 text-center">{m['Clientes Ativos']}</td>
+                                    <td className="px-4 py-3 text-center">{m['Novos Clientes']}</td>
+                                    <td className="px-4 py-3 text-center">{m.Churn}</td>
+                                    <td className="px-4 py-3 text-center">{m['Taxa de Churn'].toFixed(2)}%</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+                {monthlyMetrics.length > 3 && (
+                    <div className="text-center mt-4">
+                        <button onClick={() => setShowAllMonths(!showAllMonths)} className="text-blue-400 text-sm font-semibold hover:underline">
+                            {showAllMonths ? 'Ver menos' : 'Ver mais'}
+                        </button>
+                    </div>
+                )}
+            </Card>
+
+            <Card>
+                <h3 className="text-lg font-semibold mb-4 text-white">Balanço Financeiro (Últimos 12 meses)</h3>
+                <div style={{ width: '100%', height: 300 }}>
+                    <ResponsiveContainer>
+                        <ComposedChart data={monthlyMetrics} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                            <XAxis dataKey="name" stroke="#9ca3af" />
+                            <YAxis stroke="#9ca3af" tickFormatter={(value) => new Intl.NumberFormat('pt-BR', { notation: 'compact', compactDisplay: 'short' }).format(value)} />
+                            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#e2e8f0' }} formatter={(value) => [new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)]} />
+                            <Legend />
+                            <Bar dataKey="Faturamento" fill="#22c55e" name="Faturamento" />
+                            <Bar dataKey="Despesa" fill="#ef4444" name="Despesa" />
+                            <Line type="monotone" dataKey="Lucro" stroke="#3b82f6" strokeWidth={2} name="Lucro" />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <DonutChartCard title="Faturamento por Serviço" data={chartData.revenueByService} />
+                <DonutChartCard title="Despesa por Categoria" data={chartData.expenseByCategory} />
+                <DonutChartCard title="Clientes por Nicho" data={chartData.clientsByNiche} />
+                <DonutChartCard title="Clientes por Origem" data={chartData.clientsByOrigin} />
+            </div>
+        </div>
+    );
+};
+
+const DatabaseManager = ({ db, onDbUpdate }) => {
+    const [editing, setEditing] = useState({ key: null, index: null, value: '' });
+    const [newItem, setNewItem] = useState({});
+    const [activeTab, setActiveTab] = useState('Financeiro');
+    const dragItem = useRef();
+    const dragOverItem = useRef();
+
+    const dbCategories = {
+        'Financeiro': ['incomeCategories', 'expenseCategories', 'tools', 'payers'],
+        'Clientes': ['clientNames', 'clientStatuses', 'clientNiches', 'clientOrigins'],
+        'Serviços': ['services'],
+        'Colaboradores': ['collaboratorFunctions', 'squads', 'paymentTypes', 'variableCriteriaOptions'],
+        'Prospecção': ['messageTags']
+    };
+
+    const dbTitles = {
+        incomeCategories: 'Categorias de Entrada',
+        expenseCategories: 'Categorias de Saída',
+        services: 'Serviços',
+        tools: 'Ferramentas',
+        clientNames: 'Nomes de Clientes',
+        payers: 'Pagadores/Recebedores',
+        clientStatuses: 'Status de Clientes',
+        clientNiches: 'Nichos de Clientes',
+        clientOrigins: 'Origens de Clientes',
+        collaboratorFunctions: 'Funções de Colaboradores',
+        squads: 'Squads',
+        paymentTypes: 'Tipos de Pagamento',
+        variableCriteriaOptions: 'Critérios de Variável',
+        messageTags: 'Tags de Mensagem',
+    };
+
+    const handleDragStart = (e, position, key) => {
+        dragItem.current = { position, key };
+    };
+
+    const handleDragEnter = (e, position, key) => {
+        if (dragItem.current.key !== key) return;
+        dragOverItem.current = position;
+    };
+
+    const handleDrop = (e, key) => {
+        if (dragItem.current.key !== key) return;
+        const list = [...db[key]];
+        const dragItemContent = list[dragItem.current.position];
+        list.splice(dragItem.current.position, 1);
+        list.splice(dragOverItem.current, 0, dragItemContent);
+        dragItem.current = null;
+        dragOverItem.current = null;
+        onDbUpdate({ ...db, [key]: list });
+    };
+
+    const handleEdit = (key, index, value) => {
+        setEditing({ key, index, value });
+    };
+
+    const handleSave = () => {
+        const { key, index, value } = editing;
+        if (!value) return;
+        const updatedList = [...db[key]];
+        updatedList[index] = value;
+        onDbUpdate({ ...db, [key]: updatedList });
+        setEditing({ key: null, index: null, value: '' });
+    };
+
+    const handleDelete = (key, index) => {
+        const updatedList = [...db[key]];
+        updatedList.splice(index, 1);
+        onDbUpdate({ ...db, [key]: updatedList });
+    };
+
+    const handleAddNew = (key) => {
+        if (!newItem[key]) return;
+        onDbUpdate({ ...db, [key]: [...db[key], newItem[key]] });
+        setNewItem(prev => ({ ...prev, [key]: '' }));
+    };
+
+    return (
+        <div className="p-4 sm:p-6">
+            <h2 className="text-2xl font-bold mb-4 text-white">Banco de Dados</h2>
+            <div className="border-b border-slate-700 mb-4">
+                <div className="flex -mb-px space-x-4 overflow-x-auto">
+                    {Object.keys(dbCategories).map(tab => (
+                        <button key={tab} onClick={() => setActiveTab(tab)} className={`py-2 px-4 text-sm font-medium border-b-2 whitespace-nowrap ${activeTab === tab ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400 hover:text-white'}`}>{tab}</button>
+                    ))}
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {dbCategories[activeTab].map((key) => (
+                    <Card key={key}>
+                        <h3 className="font-bold text-lg text-blue-400 capitalize mb-2">{dbTitles[key]}</h3>
+                        <div className="max-h-80 overflow-y-auto space-y-2 pr-2">
+                            {db[key]?.map((item, index) => (
+                                <div
+                                    key={index}
+                                    className="flex items-center gap-2 group cursor-grab"
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, index, key)}
+                                    onDragEnter={(e) => handleDragEnter(e, index, key)}
+                                    onDragEnd={() => handleDrop(null, key)}
+                                    onDragOver={(e) => e.preventDefault()}
+                                >
+                                    {editing.key === key && editing.index === index ? (
+                                        <input
+                                            type="text"
+                                            value={editing.value}
+                                            onChange={(e) => setEditing(e => ({ ...e, value: e.target.value }))}
+                                            onBlur={handleSave}
+                                            onKeyDown={e => e.key === 'Enter' && handleSave()}
+                                            autoFocus
+                                            className="w-full p-2 rounded-md bg-slate-900 border border-blue-500"
+                                        />
+                                    ) : (
+                                        <p className="flex-grow bg-slate-700/50 p-2 rounded-md text-sm truncate">{item}</p>
+                                    )}
+                                    <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => handleEdit(key, index, item)} className="p-1 text-slate-400 hover:text-white"><Edit size={14} /></button>
+                                        <button onClick={() => handleDelete(key, index)} className="p-1 text-slate-400 hover:text-red-400"><Trash2 size={14} /></button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="Adicionar novo..."
+                                value={newItem[key] || ''}
+                                onChange={e => setNewItem(prev => ({ ...prev, [key]: e.target.value }))}
+                                onKeyDown={e => e.key === 'Enter' && handleAddNew(key)}
+                                className="w-full p-2 rounded-md bg-slate-700 border border-slate-600"
+                            />
+                            <button onClick={() => handleAddNew(key)} className="p-2 bg-blue-600 rounded-md hover:bg-blue-700"><Plus size={20} /></button>
+                        </div>
+                    </Card>
+                ))}
+            </div>
+        </div>
+    )
+};
+
+const CollaboratorsList = ({ collaborators, onEditClick, onDeleteClick }) => {
+    const [filters, setFilters] = useState({ name: '', func: '' });
+
+    const handleFilterChange = (name, value) => {
+        setFilters(prev => ({ ...prev, [name]: value }));
+    };
+
+    const filteredCollaborators = useMemo(() => {
+        return collaborators.filter(c => {
+            if (filters.name && !c.name.toLowerCase().includes(filters.name.toLowerCase())) return false;
+            if (filters.func && c.func !== filters.func) return false;
+            return true;
+        });
+    }, [collaborators, filters]);
+
+    const groupedCollaborators = useMemo(() => {
+        return filteredCollaborators.reduce((acc, collab) => {
+            const { squad } = collab;
+            if (!acc[squad]) {
+                acc[squad] = [];
+            }
+            acc[squad].push(collab);
+            return acc;
+        }, {});
+    }, [filteredCollaborators]);
+
+    return (
+        <div className="p-4 sm:p-6">
+            <h2 className="text-2xl font-bold mb-4 text-white">Colaboradores</h2>
+            <Card className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input
+                        type="text"
+                        placeholder="Filtrar por nome..."
+                        value={filters.name}
+                        onChange={e => handleFilterChange('name', e.target.value)}
+                        className="w-full p-2 border border-slate-600 rounded-lg bg-slate-700"
+                    />
+                    <SearchableSelect
+                        options={initialDbData.collaboratorFunctions}
+                        value={filters.func}
+                        onChange={val => handleFilterChange('func', val)}
+                        placeholder="Filtrar por função..."
+                    />
+                </div>
+            </Card>
+            <div className="space-y-6">
+                {Object.entries(groupedCollaborators).map(([squad, collabs]) => (
+                    <div key={squad}>
+                        <h3 className="text-lg font-semibold text-blue-400 mb-3">{squad}</h3>
+                        <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-xs text-slate-400 uppercase bg-slate-800">
+                                        <tr>
+                                            <th className="px-4 py-3">Nome</th>
+                                            <th className="px-4 py-3">Aniversário</th>
+                                            <th className="px-4 py-3">Chave Pix</th>
+                                            <th className="px-4 py-3">Tipo</th>
+                                            <th className="px-4 py-3">Salário</th>
+                                            <th className="px-4 py-3">Data de Entrada</th>
+                                            <th className="px-4 py-3">Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {collabs.map(collab => (
+                                            <tr key={collab.id} className="border-b border-slate-700">
+                                                <td className="px-4 py-3 font-medium text-white">{collab.name}</td>
+                                                <td className="px-4 py-3">{collab.birthday ? new Date(collab.birthday + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span>{collab.pixKey}</span>
+                                                        {collab.pixKey && <button onClick={() => navigator.clipboard.writeText(collab.pixKey)} className="p-1 text-slate-400 hover:text-white"><Copy size={14} /></button>}
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">{collab.paymentType}</td>
+                                                <td className="px-4 py-3"><CurrencyDisplay value={collab.salary} /></td>
+                                                <td className="px-4 py-3">{collab.entryDate ? new Date(collab.entryDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}</td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex gap-2">
+                                                        <button onClick={() => onEditClick(collab)} className="p-1 text-slate-400 hover:text-white"><Edit size={16} /></button>
+                                                        <button onClick={() => onDeleteClick(collab)} className="p-1 text-slate-400 hover:text-red-400"><Trash2 size={16} /></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const ClientsList = ({ clients, transactions, db, onEditClick }) => {
+    const [isFilterVisible, setIsFilterVisible] = useState(false);
+    const [isInactiveVisible, setIsInactiveVisible] = useState(false);
+    const [filters, setFilters] = useState({ status: '', niche: '', origin: '', minMrr: '', maxMrr: '' });
+    const [sortOrder, setSortOrder] = useState('name_asc');
+
+    const handleFilterChange = (name, value) => {
+        setFilters(prev => ({ ...prev, [name]: value }));
+    };
+
+    const filteredAndSortedClients = useMemo(() => {
+        const today = new Date();
+        const fifteenDaysFromNow = new Date();
+        fifteenDaysFromNow.setDate(today.getDate() + 15);
+
+        let processedClients = clients
+            .map(client => {
+                const ltv = transactions.filter(t => t.type === 'entrada' && t.client === client.name).reduce((sum, t) => sum + t.value, 0);
+                const entryDate = client.entryDate ? new Date(client.entryDate) : null;
+                let durationMonths = 0;
+                if(entryDate) {
+                    durationMonths = (today.getFullYear() - entryDate.getFullYear()) * 12;
+                    durationMonths -= entryDate.getMonth();
+                    durationMonths += today.getMonth();
+                }
+
+                let nextRenewalDate = null;
+                let renewalStatus = 'ok';
+                if (client.status === 'Ativo' && client.lastRenewalDate && client.contractDuration) {
+                    const lastRenewal = new Date(client.lastRenewalDate + 'T00:00:00');
+                    if (client.contractDuration === '30d') {
+                        nextRenewalDate = new Date(lastRenewal.setDate(lastRenewal.getDate() + 30));
+                    } else {
+                        const duration = parseInt(client.contractDuration, 10);
+                        nextRenewalDate = new Date(lastRenewal.setMonth(lastRenewal.getMonth() + duration));
+                    }
+                    
+                    if (nextRenewalDate < today) {
+                        renewalStatus = 'overdue';
+                    } else if (nextRenewalDate <= fifteenDaysFromNow) {
+                        renewalStatus = 'upcoming';
+                    }
+                }
+
+                return { ...client, ltv, durationMonths: durationMonths <= 0 ? 0 : durationMonths, nextRenewalDate, renewalStatus };
+            })
+            .filter(c => {
+                if (filters.status && c.status !== filters.status) return false;
+                if (filters.niche && c.niche !== filters.niche) return false;
+                if (filters.origin && c.origin !== filters.origin) return false;
+                if (filters.minMrr && c.mrr < parseFloat(filters.minMrr)) return false;
+                if (filters.maxMrr && c.mrr > parseFloat(filters.maxMrr)) return false;
+                return true;
+            });
+            
+        return processedClients.sort((a, b) => {
+            switch (sortOrder) {
+                case 'name_asc': return a.name.localeCompare(b.name);
+                case 'name_desc': return b.name.localeCompare(a.name);
+                case 'date_newest': return new Date(b.entryDate) - new Date(a.entryDate);
+                case 'date_oldest': return new Date(a.entryDate) - new Date(b.entryDate);
+                case 'niche_asc': return a.niche.localeCompare(b.niche);
+                default: return 0;
+            }
+        });
+
+    }, [clients, transactions, filters, sortOrder]);
+
+    const activeClients = filteredAndSortedClients.filter(c => c.status === 'Ativo');
+    const inactiveClients = filteredAndSortedClients.filter(c => c.status !== 'Ativo');
+
+    const handleDownloadClientsCSV = () => {
+        if (filteredAndSortedClients.length === 0) return;
+        const headers = ["ID", "Nome", "Status", "Nicho", "Origem", "MRR", "Moeda", "Data de Entrada", "Data de Saída", "Próxima Renovação", "LTV"];
+        const csvRows = [headers.join(',')];
+        filteredAndSortedClients.forEach(c => {
+            const row = [c.id, `"${c.name}"`, c.status, c.niche, c.origin, c.mrr, c.currency, c.entryDate, c.exitDate || '', c.nextRenewalDate?.toLocaleDateString('pt-BR') || 'N/A', c.ltv];
+            csvRows.push(row.join(','));
+        });
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.setAttribute("href", URL.createObjectURL(blob));
+        link.setAttribute("download", "clientes.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const ClientCard = ({ client }) => {
+        const getStatusPill = (status) => {
+            const styles = {
+                'Ativo': 'bg-green-500/20 text-green-300 border-green-500/30',
+                'Pausado': 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
+                'Cancelou': 'bg-red-500/20 text-red-300 border-red-500/30',
+            };
+            return <span className={`px-3 py-1 text-xs font-semibold rounded-full border whitespace-nowrap ${styles[status] || ''}`}>{status}</span>;
+        };
+        
+        const getRenewalPill = (status) => {
+            const styles = {
+                'upcoming': 'bg-yellow-500/20 text-yellow-300',
+                'overdue': 'bg-red-500/20 text-red-300',
+            };
+            if(!styles[status]) return null;
+            return <span className={`p-1 rounded-full ${styles[status]}`}><Clock size={14} /></span>;
+        };
+
+        const GenericPill = ({ text, icon: Icon }) => {
+            const colors = ['bg-purple-500/20 text-purple-300', 'bg-indigo-500/20 text-indigo-300', 'bg-cyan-500/20 text-cyan-300', 'bg-pink-500/20 text-pink-300'];
+            const color = colors[Math.abs(text?.split("").reduce((a,b)=>{a=((a<<5)-a)+b.charCodeAt(0);return a&a},0)) % colors.length];
+            return <span className={`flex items-center gap-2 px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${color}`}>{Icon && <Icon size={14} />} {text}</span>;
+        };
+
+        return (
+            <Card className="flex flex-col justify-between" onClick={() => onEditClick(client)}>
+                <div>
+                    <div className="flex justify-between items-start mb-3">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">{client.name} {getRenewalPill(client.renewalStatus)}</h3>
+                        {getStatusPill(client.status)}
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        <GenericPill text={client.niche} icon={Hash} />
+                        <GenericPill text={client.origin} icon={TrendingUp} />
+                    </div>
+                    <div className="space-y-2 text-sm text-slate-300">
+                        <div className="flex justify-between"><span>MRR:</span> <CurrencyDisplay value={client.mrr} currency={client.currency} className="font-semibold text-white" /></div>
+                        <div className="flex justify-between"><span>LTV:</span> <CurrencyDisplay value={client.ltv} currency="BRL" className="font-semibold text-white" /></div>
+                        <div className="flex justify-between"><span>Tempo Ativo:</span> <span className="font-semibold text-white">{client.durationMonths} meses</span></div>
+                        <div className="flex justify-between"><span>Próxima Renovação:</span> <span className={`font-semibold ${client.renewalStatus !== 'ok' ? 'text-yellow-300' : 'text-white'}`}>{client.nextRenewalDate?.toLocaleDateString('pt-BR') || 'N/A'}</span></div>
+                    </div>
+                </div>
+                <div className="flex justify-around pt-4 mt-4 border-t border-slate-700 text-center text-xs">
+                    <div>
+                        <p className="font-bold text-lg text-blue-400">{client.closedReferrals || 0}</p>
+                        <p className="text-slate-400">Ind. Fechadas</p>
+                    </div>
+                    <div>
+                        <p className="font-bold text-lg text-blue-400">{client.meetingReferrals || 0}</p>
+                        <p className="text-slate-400">Ind. em Reunião</p>
+                    </div>
+                </div>
+            </Card>
+        );
+    };
+
+    return (
+        <div className="p-4 sm:p-6">
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-4">
+                <h2 className="text-2xl font-bold text-white">Clientes ({filteredAndSortedClients.length})</h2>
+                <div className="flex items-center gap-2">
+                    <select onChange={(e) => setSortOrder(e.target.value)} value={sortOrder} className="p-2 border border-slate-600 rounded-lg bg-slate-700 text-sm">
+                        <option value="name_asc">Nome (A-Z)</option>
+                        <option value="name_desc">Nome (Z-A)</option>
+                        <option value="date_newest">Data de Início (Recentes)</option>
+                        <option value="date_oldest">Data de Início (Antigos)</option>
+                        <option value="niche_asc">Nicho (A-Z)</option>
+                    </select>
+                    <button onClick={() => setIsFilterVisible(!isFilterVisible)} className="p-2 bg-slate-700 rounded-md hover:bg-slate-600"><Filter size={16} /></button>
+                    <button onClick={handleDownloadClientsCSV} className="p-2 bg-slate-700 rounded-md hover:bg-slate-600" title="Baixar CSV"><Download size={16} /></button>
+                </div>
+            </div>
+            {isFilterVisible && (
+                <Card className="mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <SearchableSelect options={db.clientStatuses} value={filters.status} onChange={val => handleFilterChange('status', val)} placeholder="Status" />
+                        <SearchableSelect options={db.clientNiches} value={filters.niche} onChange={val => handleFilterChange('niche', val)} placeholder="Nicho" />
+                        <SearchableSelect options={db.clientOrigins} value={filters.origin} onChange={val => handleFilterChange('origin', val)} placeholder="Origem" />
+                        <input type="number" placeholder="MRR Mín." value={filters.minMrr} onChange={e => handleFilterChange('minMrr', e.target.value)} className="p-2 border border-slate-600 rounded-lg bg-slate-700" />
+                        <input type="number" placeholder="MRR Máx." value={filters.maxMrr} onChange={e => handleFilterChange('maxMrr', e.target.value)} className="p-2 border border-slate-600 rounded-lg bg-slate-700" />
+                    </div>
+                </Card>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {activeClients.map(client => <ClientCard key={client.id} client={client} />)}
+            </div>
+
+            {inactiveClients.length > 0 && (
+                <div className="mt-8">
+                    <button onClick={() => setIsInactiveVisible(!isInactiveVisible)} className="flex items-center gap-2 text-lg font-bold text-white">
+                        <ChevronDown className={`transition-transform ${isInactiveVisible ? 'rotate-180' : ''}`} />
+                        Clientes Pausados e Cancelados ({inactiveClients.length})
+                    </button>
+                    {isInactiveVisible && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mt-4">
+                            {inactiveClients.map(client => <ClientCard key={client.id} client={client} />)}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+const TransactionsList = ({ transactions, onUpdate, db, onEditClick, onDeleteClick, onBulkAdd }) => {
+    const [isFilterVisible, setIsFilterVisible] = useState(false);
+    const [filters, setFilters] = useState({ text: '', category: '', client: '', service: '', tool: '', minAmount: '', maxAmount: '' });
+    const [typeFilter, setTypeFilter] = useState('');
+    const [showOlder, setShowOlder] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const allCategories = useMemo(() => [...new Set([...(db.incomeCategories || []), ...(db.expenseCategories || [])])], [db]);
+
+    const handleFilterChange = (name, value) => setFilters(prev => ({ ...prev, [name]: value }));
+
+    const toggleTransferred = (e, id) => {
+        e.stopPropagation();
+        const transactionToUpdate = transactions.find(t => t.id === id);
+        if (transactionToUpdate) {
+            onUpdate({ ...transactionToUpdate, transferred: !transactionToUpdate.transferred });
+        }
+    };
+
+    const handleUploadClick = () => {
+        fileInputRef.current.click();
+    };
+
+    const handleFileChange = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                onBulkAdd(text);
+            };
+            reader.readAsText(file);
+        }
+        event.target.value = '';
+    };
+
+    const filteredTransactions = useMemo(() => {
+        return transactions
+            .filter(t => {
+                if (typeFilter && t.type !== typeFilter) return false;
+                const combinedText = `${t.observation || ''} ${t.services?.join(' ') || ''} ${t.tool || ''} ${t.category || ''} ${t.client || ''}`;
+                if (filters.text && !combinedText.toLowerCase().includes(filters.text.toLowerCase())) return false;
+                if (filters.category && t.category !== filters.category) return false;
+                if (filters.client && t.client !== filters.client) return false;
+                if (filters.service && !t.services?.includes(filters.service)) return false;
+                if (filters.tool && t.tool !== filters.tool) return false;
+                if (filters.minAmount && t.value < parseFloat(filters.minAmount)) return false;
+                if (filters.maxAmount && t.value > parseFloat(filters.maxAmount)) return false;
+                return true;
+            })
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+    }, [transactions, filters, typeFilter]);
+
+    const groupedTransactions = useMemo(() => {
+        const groups = filteredTransactions.reduce((acc, t) => {
+            const month = new Date(t.date + 'T00:00:00').toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+            if (!acc[month]) acc[month] = [];
+            acc[month].push(t);
+            return acc;
+        }, {});
+        return Object.entries(groups).sort(([a], [b]) => new Date(b.split(' de ').reverse().join('-')) - new Date(a.split(' de ').reverse().join('-')));
+    }, [filteredTransactions]);
+
+    const handleDownloadCSV = () => {
+        if (filteredTransactions.length === 0) return;
+        const headers = ["ID", "Tipo", "Categoria", "Cliente", "Serviços", "Ferramenta", "Valor", "Moeda", "Data", "Pagador/Recebedor", "Transferido", "Observação"];
+        const csvRows = [headers.join(',')];
+        filteredTransactions.forEach(t => {
+            const row = [t.id, t.type, t.category, `"${t.client || ''}"`, `"${t.services?.join('; ') || ''}"`, `"${t.tool || ''}"`, t.value, t.currency, t.date, t.payer, t.transferred, `"${(t.observation || '').replace(/"/g, '""')}"`];
+            csvRows.push(row.join(','));
+        });
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([`\uFEFF${csvString}`], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.setAttribute("href", URL.createObjectURL(blob));
+        link.setAttribute("download", "fluxo_de_caixa.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const TransactionCard = ({ transaction: t }) => (
+        <Card key={t.id} className="flex items-center space-x-4">
+            <div className={`w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center ${t.type === 'entrada' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                {t.type === 'entrada' ? <ArrowUpCircle className="text-green-400" size={28} /> : <ArrowDownCircle className="text-red-400" size={28} />}
+            </div>
+            <div className="flex-grow">
+                <p className="font-bold text-white">{t.services?.join(', ') || t.tool || t.category}</p>
+                <div className="text-sm text-slate-400 flex items-center flex-wrap gap-x-3">
+                    <span>{new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                    {t.client && <span className="flex items-center gap-1"><User size={14} /> {t.client}</span>}
+                    <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1"><Banknote size={14} /> {t.payer}</span>
+                        <button onClick={(e) => toggleTransferred(e, t.id)} title="Marcar como Transferido" className={`relative inline-flex items-center h-5 w-9 rounded-full transition-colors ${t.transferred ? 'bg-blue-600' : 'bg-slate-600'}`}>
+                            <span className={`inline-block w-3 h-3 transform bg-white rounded-full transition-transform ${t.transferred ? 'translate-x-5' : 'translate-x-1'}`} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div className="text-right">
+                <CurrencyDisplay value={t.value} currency={t.currency} className={`font-bold text-xl ${t.type === 'entrada' ? 'text-green-400' : 'text-red-400'}`} />
+                <div className="text-xs text-slate-400 mt-1"><CurrencyDisplay value={t.value / 2} currency={t.currency} /></div>
+            </div>
+            <div className="flex flex-col gap-2 pl-4 border-l border-slate-700">
+                <button onClick={() => onEditClick(t)} className="p-1 text-slate-400 hover:text-white"><Edit size={16} /></button>
+                <button onClick={() => onDeleteClick(t)} className="p-1 text-slate-400 hover:text-red-400"><Trash2 size={16} /></button>
+            </div>
+        </Card>
+    );
+
+    const now = new Date();
+    const currentMonthStr = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+    now.setMonth(now.getMonth() - 1);
+    const prevMonthStr = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+
+    const recentGroups = groupedTransactions.filter(([month]) => month === currentMonthStr || month === prevMonthStr);
+    const olderGroups = groupedTransactions.filter(([month]) => month !== currentMonthStr && month !== prevMonthStr);
+
+    return (
+        <div className="p-4 sm:p-6">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-white">Fluxo de Caixa</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button onClick={() => setTypeFilter('')} className={`px-3 py-1 rounded-md text-sm font-medium ${typeFilter === '' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>Todas</button>
+                    <button onClick={() => setTypeFilter('entrada')} className={`px-3 py-1 rounded-md text-sm font-medium ${typeFilter === 'entrada' ? 'bg-green-600 text-white' : 'bg-slate-700 text-slate-300'}`}>Entradas</button>
+                    <button onClick={() => setTypeFilter('saida')} className={`px-3 py-1 rounded-md text-sm font-medium ${typeFilter === 'saida' ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-300'}`}>Saídas</button>
+                    <button onClick={() => setIsFilterVisible(!isFilterVisible)} className="p-2 bg-slate-700 rounded-md hover:bg-slate-600"><Filter size={16} /></button>
+                    <button onClick={handleUploadClick} className="p-2 bg-slate-700 rounded-md hover:bg-slate-600" title="Subir CSV">
+                        <Upload size={16} />
+                    </button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".csv"
+                        style={{ display: 'none' }}
+                    />
+                    <button onClick={handleDownloadCSV} className="p-2 bg-slate-700 rounded-md hover:bg-slate-600" title="Baixar CSV"><Download size={16} /></button>
+                </div>
+            </div>
+            {isFilterVisible && (
+                <Card className="mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="md:col-span-2"><input type="text" placeholder="Buscar..." value={filters.text} onChange={e => handleFilterChange('text', e.target.value)} className="p-2 w-full border border-slate-600 rounded-lg bg-slate-700" /></div>
+                        <SearchableSelect options={allCategories} value={filters.category} onChange={val => handleFilterChange('category', val)} placeholder="Categoria" />
+                        <SearchableSelect options={db.clientNames} value={filters.client} onChange={val => handleFilterChange('client', val)} placeholder="Cliente" />
+                        <SearchableSelect options={db.services} value={filters.service} onChange={val => handleFilterChange('service', val)} placeholder="Serviço" />
+                        <SearchableSelect options={db.tools} value={filters.tool} onChange={val => handleFilterChange('tool', val)} placeholder="Ferramenta" />
+                        <input type="number" placeholder="Valor Mín." value={filters.minAmount} onChange={e => handleFilterChange('minAmount', e.target.value)} className="p-2 border border-slate-600 rounded-lg bg-slate-700" />
+                        <input type="number" placeholder="Valor Máx." value={filters.maxAmount} onChange={e => handleFilterChange('maxAmount', e.target.value)} className="p-2 border border-slate-600 rounded-lg bg-slate-700" />
+                    </div>
+                </Card>
+            )}
+            <div className="space-y-6">
+                {recentGroups.map(([month, transactions]) => (
+                    <div key={month}>
+                        <h3 className="text-lg font-bold text-blue-400 mb-3 capitalize">{month}</h3>
+                        <div className="space-y-3">{transactions.map(t => <TransactionCard key={t.id} transaction={t} />)}</div>
+                    </div>
+                ))}
+                {olderGroups.length > 0 && (
+                    <div>
+                        <button onClick={() => setShowOlder(!showOlder)} className="flex items-center gap-2 text-lg font-bold text-white mb-3">
+                            <ChevronDown className={`transition-transform ${showOlder ? 'rotate-180' : ''}`} />
+                            Meses Anteriores
+                        </button>
+                        {showOlder && (
+                            <div className="space-y-6">
+                                {olderGroups.map(([month, transactions]) => (
+                                    <div key={month}>
+                                        <h3 className="text-lg font-bold text-blue-400 mb-3 capitalize">{month}</h3>
+                                        <div className="space-y-3">{transactions.map(t => <TransactionCard key={t.id} transaction={t} />)}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const OpportunitiesGrid = ({ clients, allServices, onUpdateClient }) => {
+    const [clientFilter, setClientFilter] = useState('');
+    const [selectedServices, setSelectedServices] = useState([]);
+
+    const servicesToDisplay = useMemo(() => selectedServices.length > 0 ? selectedServices : allServices, [selectedServices, allServices]);
+    
+    const handleCellClick = (client, serviceName) => {
+        const existingService = client.services.find(s => s.name === serviceName);
+        let newServices;
+        if (existingService) {
+            if (existingService.status === 'opportunity') {
+                newServices = client.services.filter(s => s.name !== serviceName);
+            } else {
+                return; // Não faz nada se o serviço já estiver ativo
+            }
+        } else {
+            newServices = [...client.services, { name: serviceName, status: 'opportunity' }];
+        }
+        onUpdateClient({ ...client, services: newServices });
+    };
+
+    const filteredClients = useMemo(() =>
+        clients.filter(client =>
+            client.name.toLowerCase().includes(clientFilter.toLowerCase())
+        ), [clients, clientFilter]);
+
+    return (
+        <div className="p-4 sm:p-6">
+            <h2 className="text-2xl font-bold text-white mb-4">Matriz de Oportunidades</h2>
+            <Card className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-sm font-medium text-slate-300 mb-1 block">Filtrar por Cliente</label>
+                        <input type="text" placeholder="Buscar cliente..." value={clientFilter} onChange={(e) => setClientFilter(e.target.value)} className="w-full p-2 border border-slate-600 rounded-lg bg-slate-700 text-white" />
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-slate-300 mb-1 block">Filtrar Serviços (Colunas)</label>
+                        <MultiSearchableSelect options={allServices} value={selectedServices} onChange={setSelectedServices} placeholder="Mostrar todos os serviços" />
+                    </div>
+                </div>
+            </Card>
+            <div className="overflow-x-auto">
+                <table className="w-full table-auto border-collapse">
+                    <thead className="bg-slate-800">
+                        <tr>
+                            <th className="sticky left-0 bg-slate-900 p-3 text-left text-sm font-semibold text-white z-10 select-none min-w-[280px]">
+                                Cliente ({filteredClients.length})
+                            </th>
+                            {servicesToDisplay.map((service, index) => (
+                                <th key={service} className="p-3 text-sm font-semibold text-white text-center whitespace-nowrap select-none">
+                                    {service}
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {filteredClients.map(client => (
+                            <tr key={client.id} className="border-b border-slate-800 hover:bg-slate-800/50">
+                                <td className="sticky left-0 bg-slate-900 p-3 text-sm font-medium text-white z-10 truncate">{client.name}</td>
+                                {servicesToDisplay.map((serviceName, index) => {
+                                    const clientService = client.services?.find(s => s.name === serviceName);
+                                    let cellContent;
+                                    let cellClass = "p-3 text-center cursor-pointer";
+                                    if (clientService?.status === 'active') {
+                                        cellContent = <CheckCircle size={20} className="mx-auto text-green-500" />;
+                                        cellClass = "p-3 text-center";
+                                    } else if (clientService?.status === 'opportunity') {
+                                        cellContent = <Lightbulb size={20} className="mx-auto text-yellow-400" />;
+                                    } else {
+                                        cellContent = <div className="w-5 h-5 mx-auto"></div>;
+                                    }
+                                    return (
+                                        <td key={`${client.id}-${serviceName}`} className={cellClass} onClick={() => handleCellClick(client, serviceName)}>
+                                            {cellContent}
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+
+// --- MODAIS ---
+const TransactionModal = ({ isOpen, onClose, onSave, transaction, db, collaborators }) => {
+    const [formData, setFormData] = useState({});
+
+    const collaboratorNames = useMemo(() => (collaborators || []).map(c => c.name), [collaborators]);
+    const availableCategories = useMemo(() => {
+        if (!db || !formData.type) return [];
+        return formData.type === 'entrada' ? (db.incomeCategories || []) : (db.expenseCategories || []);
+    }, [formData.type, db]);
+
+    useEffect(() => {
+        if(isOpen && db) {
+            const defaultState = { type: 'saida', value: '', currency: 'BRL', category: db.expenseCategories[0], services: [], tool: '', client: '', date: new Date().toISOString().split('T')[0], payer: db.payers[0], transferred: false, observation: '', collaboratorName: '' };
+            setFormData(transaction ? { ...defaultState, ...transaction } : defaultState);
+        }
+    }, [transaction, isOpen, db]);
+
+    useEffect(() => {
+        if (db && (!formData.category || !availableCategories.includes(formData.category))) {
+            setFormData(prev => ({ ...prev, category: availableCategories[0] }));
+        }
+    }, [formData.type, availableCategories, formData.category, db]);
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+    };
+
+    const handleSave = () => {
+        if (!formData.value || !formData.category) return;
+        onSave({ ...formData, value: parseFloat(formData.value) });
+    };
+
+    if (!isOpen || !db) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-md max-h-full overflow-y-auto">
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-2xl font-bold text-white">{transaction ? 'Editar Lançamento' : 'Novo Lançamento'}</h2>
+                        <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button>
+                    </div>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <button disabled={!!transaction} onClick={() => handleChange({ target: { name: 'type', value: 'saida' } })} className={`w-full p-3 rounded-lg font-semibold text-center transition-all ${formData.type === 'saida' ? 'bg-red-500 text-white' : 'bg-slate-700 text-slate-300'} disabled:opacity-50`}>Saída</button>
+                            <button disabled={!!transaction} onClick={() => handleChange({ target: { name: 'type', value: 'entrada' } })} className={`w-full p-3 rounded-lg font-semibold text-center transition-all ${formData.type === 'entrada' ? 'bg-green-500 text-white' : 'bg-slate-700 text-slate-300'} disabled:opacity-50`}>Entrada</button>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-slate-300">Valor</label>
+                            <div className="flex mt-1">
+                                <input type="number" name="value" placeholder="0.00" value={formData.value || ''} onChange={handleChange} className="w-full p-3 border-y border-l border-slate-600 rounded-l-lg bg-slate-900 text-white focus:z-10" />
+                                <select name="currency" value={formData.currency || 'BRL'} onChange={handleChange} className="p-3 border-y border-r border-slate-600 rounded-r-lg bg-slate-700 text-white">{db.currencies.map(c => <option key={c} value={c}>{c}</option>)}</select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-slate-300">Categoria</label>
+                            <SearchableSelect options={availableCategories} value={formData.category} onChange={(val) => handleChange({ target: { name: 'category', value: val } })} zIndex={20} />
+                        </div>
+                        {formData.type === 'saida' && formData.category === 'Colaborador' && (
+                            <div>
+                                <label className="text-sm font-medium text-slate-300">Colaborador</label>
+                                <SearchableSelect options={collaboratorNames} value={formData.collaboratorName} onChange={(val) => handleChange({ target: { name: 'collaboratorName', value: val } })} placeholder="Selecione um colaborador" zIndex={19} />
+                            </div>
+                        )}
+                        {formData.category === 'Serviço' && (
+                            <>
+                                <div>
+                                    <label className="text-sm font-medium text-slate-300">Cliente</label>
+                                    <SearchableSelect options={db.clientNames} value={formData.client} onChange={(val) => handleChange({ target: { name: 'client', value: val } })} zIndex={19} />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-slate-300">Serviço(s)</label>
+                                    <MultiSearchableSelect options={db.services} value={formData.services} onChange={(val) => handleChange({ target: { name: 'services', value: val } })} zIndex={18} />
+                                </div>
+                            </>
+                        )}
+                        {formData.category === 'Ferramenta' && (
+                            <div>
+                                <label className="text-sm font-medium text-slate-300">Ferramenta</label>
+                                <SearchableSelect options={db.tools} value={formData.tool} onChange={(val) => handleChange({ target: { name: 'tool', value: val } })} zIndex={18} />
+                            </div>
+                        )}
+                        <div>
+                            <label className="text-sm font-medium text-slate-300">Data</label>
+                            <input type="date" name="date" value={formData.date || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-slate-300">Quem pagou/recebeu</label>
+                            <select name="payer" value={formData.payer || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white">{db.payers.map(p => <option key={p} value={p}>{p}</option>)}</select>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-slate-300">Observação</label>
+                            <textarea name="observation" placeholder="Algum detalhe adicional..." value={formData.observation || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" rows="2"></textarea>
+                        </div>
+                        <div className="flex items-center justify-between bg-slate-900/70 p-3 rounded-lg">
+                            <label className="text-sm font-medium text-slate-300">Transferiu para o outro?</label>
+                            <button onClick={() => handleChange({ target: { name: 'transferred', type: 'checkbox', checked: !formData.transferred } })} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors ${formData.transferred ? 'bg-blue-600' : 'bg-slate-600'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${formData.transferred ? 'translate-x-6' : 'translate-x-1'}`} /></button>
+                        </div>
+                    </div>
+                    <div className="mt-8">
+                        <button onClick={handleSave} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">Salvar Lançamento</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ClientModal = ({ isOpen, onClose, onSave, client, onDelete, db, collaborators }) => {
+    const [formData, setFormData] = useState({});
+    const [error, setError] = useState('');
+    const [activeTab, setActiveTab] = useState('info');
+
+    const collaboratorNames = useMemo(() => (collaborators || []).map(c => c.name), [collaborators]);
+
+    useEffect(() => {
+        if(isOpen && db) {
+            const defaultState = { name: '', status: 'Ativo', niche: '', origin: '', mrr: 0, currency: 'BRL', entryDate: new Date().toISOString().split('T')[0], lastRenewalDate: '', contractDuration: '', exitDate: null, closedReferrals: 0, meetingReferrals: 0, history: [], services: [], responsibleCollaborator: '' };
+            setFormData(client ? { ...defaultState, ...client, history: client.history || [], services: client.services || [] } : defaultState);
+            setError('');
+            setActiveTab('info');
+        }
+    }, [client, isOpen, db]);
+    
+    useEffect(() => {
+        if(isOpen) {
+            const newMrr = (formData.services || [])
+                .filter(s => s.status === 'active' && s.currency === formData.currency)
+                .reduce((sum, s) => sum + (s.price || 0), 0);
+            setFormData(prev => ({ ...prev, mrr: newMrr }));
+        }
+    }, [formData.services, formData.currency, isOpen]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleServiceToggle = (serviceName, isChecked) => {
+        setFormData(prev => {
+            const currentServices = prev.services || [];
+            let newServices;
+            if (isChecked) {
+                newServices = [...currentServices, { name: serviceName, price: 0, status: 'active', currency: 'BRL' }];
+            } else {
+                newServices = currentServices.filter(s => s.name !== serviceName);
+            }
+            return { ...prev, services: newServices };
+        });
+    };
+    
+    const handleServiceChange = (serviceName, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            services: (prev.services || []).map(s => s.name === serviceName ? { ...s, [field]: value } : s)
+        }));
+    };
+
+    const handleSave = () => {
+        if ((formData.status === 'Cancelou' || formData.status === 'Pausado') && !formData.exitDate) {
+            setError('A Data de Saída é obrigatória para clientes cancelados ou pausados.');
+            return;
+        }
+        onSave(formData, client);
+    };
+
+    if (!isOpen || !db) return null;
+
+    const renderInfoTab = () => (
+        <div className="space-y-4">
+             <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium text-slate-300">Nome do Cliente</label><SearchableSelect options={db.clientNames} value={formData.name || ''} onChange={(val) => setFormData(p => ({ ...p, name: val }))} placeholder="Selecione o cliente" /></div>
+                <div><label className="text-sm font-medium text-slate-300">Colaborador Responsável</label><SearchableSelect options={collaboratorNames} value={formData.responsibleCollaborator || ''} onChange={(val) => setFormData(p => ({ ...p, responsibleCollaborator: val }))} placeholder="Nenhum" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium text-slate-300">Status</label><select name="status" value={formData.status || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white">{db.clientStatuses.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                <div><label className="text-sm font-medium text-slate-300">Nicho</label><SearchableSelect options={db.clientNiches} value={formData.niche || ''} onChange={(val) => setFormData(p => ({ ...p, niche: val }))} /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium text-slate-300">Origem</label><SearchableSelect options={db.clientOrigins} value={formData.origin || ''} onChange={(val) => setFormData(p => ({ ...p, origin: val }))} /></div>
+                <div><label className="text-sm font-medium text-slate-300">MRR (Calculado)</label><div className="flex mt-1"><input type="number" name="mrr" placeholder="0.00" value={formData.mrr || ''} onChange={handleChange} className="w-full p-3 border-y border-l border-slate-600 rounded-l-lg bg-slate-900 text-white" disabled /><select name="currency" value={formData.currency || 'BRL'} onChange={handleChange} className="p-3 border-y border-r border-slate-600 rounded-r-lg bg-slate-700 text-white">{db.currencies.map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium text-slate-300">Data de Entrada</label><input type="date" name="entryDate" value={formData.entryDate || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+                <div><label className="text-sm font-medium text-slate-300">Última Renovação</label><input type="date" name="lastRenewalDate" value={formData.lastRenewalDate || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+            </div>
+            <div><label className="text-sm font-medium text-slate-300">Duração do Contrato</label><select name="contractDuration" value={formData.contractDuration || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white">{Object.entries(db.contractDurations).map(([key, value]) => <option key={key} value={key}>{value}</option>)}</select></div>
+            {(formData.status === 'Cancelou' || formData.status === 'Pausado') && (<div><label className="text-sm font-medium text-slate-300">Data de Saída</label><input type="date" name="exitDate" value={formData.exitDate || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>)}
+            <div className="grid grid-cols-2 gap-4">
+                <div><label className="text-sm font-medium text-slate-300">Indicações (Fechou)</label><input type="number" name="closedReferrals" value={formData.closedReferrals || 0} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+                <div><label className="text-sm font-medium text-slate-300">Indicações (Reunião)</label><input type="number" name="meetingReferrals" value={formData.meetingReferrals || 0} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+            </div>
+            {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+        </div>
+    );
+
+    const renderServicesTab = () => (
+        <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+            {db.services.map((serviceName, index) => {
+                const serviceData = formData.services?.find(s => s.name === serviceName);
+                const isChecked = !!serviceData && serviceData.status === 'active';
+                return (
+                    <div key={`${serviceName}-${index}`} className="p-3 bg-slate-900/50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-medium text-slate-200">{serviceName}</label>
+                            <input type="checkbox" checked={isChecked} onChange={(e) => handleServiceToggle(serviceName, e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        </div>
+                        {isChecked && (
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-xs text-slate-400">Valor</label>
+                                    <input type="number" placeholder="0.00" value={serviceData.price || ''} onChange={(e) => handleServiceChange(serviceName, 'price', parseFloat(e.target.value) || 0)} className="w-full p-2 mt-1 border border-slate-600 rounded-lg bg-slate-700 text-white" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-slate-400">Moeda</label>
+                                    <select value={serviceData.currency || 'BRL'} onChange={(e) => handleServiceChange(serviceName, 'currency', e.target.value)} className="w-full p-2 mt-1 border border-slate-600 rounded-lg bg-slate-700 text-white">
+                                        {db.currencies.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )
+            })}
+        </div>
+    );
+
+    const renderHistoryTab = () => (
+        <div className="space-y-2 max-h-96 overflow-y-auto p-2 bg-slate-900/50 rounded-md">{formData.history?.length > 0 ? [...formData.history].reverse().map((item, index) => (<div key={index} className="text-xs p-2 bg-slate-700/50 rounded"><p className="font-bold">{item.action}</p><p className="text-slate-400">{item.details}</p><p className="text-slate-500 text-right">{new Date(item.timestamp).toLocaleString('pt-BR')}</p></div>)) : <p className="text-xs text-slate-400 text-center p-4">Nenhum histórico encontrado.</p>}</div>
+    );
+
+    return (<div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex justify-center items-center z-50 p-4"><div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-lg max-h-full overflow-y-auto"><div className="p-6"><div className="flex justify-between items-center mb-4"><h2 className="text-2xl font-bold text-white">{client ? 'Editar Cliente' : 'Novo Cliente'}</h2><button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button></div><div className="border-b border-slate-700 mb-4"><div className="flex -mb-px"><button onClick={() => setActiveTab('info')} className={`py-2 px-4 text-sm font-medium border-b-2 ${activeTab === 'info' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400'}`}>Informações</button><button onClick={() => setActiveTab('services')} className={`py-2 px-4 text-sm font-medium border-b-2 ${activeTab === 'services' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400'}`}>Serviços</button><button onClick={() => setActiveTab('history')} className={`py-2 px-4 text-sm font-medium border-b-2 ${activeTab === 'history' ? 'border-blue-500 text-blue-400' : 'border-transparent text-slate-400'}`}>Histórico</button></div></div><div>{activeTab === 'info' && renderInfoTab()}{activeTab === 'services' && renderServicesTab()}{activeTab === 'history' && renderHistoryTab()}</div><div className="mt-8 flex items-center gap-4">{client && (<button onClick={() => onDelete(client)} className="w-auto bg-transparent border border-red-500 text-red-400 font-bold py-3 px-4 rounded-lg hover:bg-red-500/20">Excluir</button>)}<button onClick={handleSave} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">Salvar Cliente</button></div></div></div></div>);
+};
+
+const CollaboratorModal = ({ isOpen, onClose, onSave, collaborator, db }) => {
+    
+    const [formData, setFormData] = useState({});
+    
+    useEffect(() => {
+        if(isOpen && db) {
+            const defaultState = { name: '', func: db.collaboratorFunctions[0], squad: db.squads[0], paymentType: db.paymentTypes[0], salary: '', entryDate: new Date().toISOString().split('T')[0], birthday: '', contractTime: '', pixKey: '', variableType: 'R$', variableValue: '', variableCriteria: '' };
+            setFormData(collaborator ? { ...defaultState, ...collaborator } : defaultState);
+        }
+    }, [collaborator, isOpen, db]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSave = () => {
+        if (!formData.name || !formData.func) return;
+        onSave({ ...formData, salary: parseFloat(formData.salary || 0), variableValue: parseFloat(formData.variableValue || 0) });
+    };
+
+    if (!isOpen || !db) return null;
+
+    const showSalaryField = formData.paymentType === 'Fixo' || formData.paymentType === 'Fixo + Variável';
+    const showVariableFields = formData.paymentType === 'Variável' || formData.paymentType === 'Fixo + Variável';
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-md max-h-full overflow-y-auto">
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-6"><h2 className="text-2xl font-bold text-white">{collaborator ? 'Editar Colaborador' : 'Novo Colaborador'}</h2><button onClick={onClose} className="text-slate-400 hover:text-white"><X size={24} /></button></div>
+                    <div className="space-y-4">
+                        <div><label className="text-sm font-medium text-slate-300">Nome</label><input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div><label className="text-sm font-medium text-slate-300">Função</label><SearchableSelect options={db.collaboratorFunctions} value={formData.func || ''} onChange={(val) => handleChange({ target: { name: 'func', value: val } })} /></div>
+                            <div><label className="text-sm font-medium text-slate-300">Squad</label><SearchableSelect options={db.squads} value={formData.squad || ''} onChange={(val) => handleChange({ target: { name: 'squad', value: val } })} /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                           <div><label className="text-sm font-medium text-slate-300">Data de Entrada</label><input type="date" name="entryDate" value={formData.entryDate || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+                           <div><label className="text-sm font-medium text-slate-300">Aniversário</label><input type="date" name="birthday" value={formData.birthday || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+                        </div>
+                        <div><label className="text-sm font-medium text-slate-300">Tempo de Contrato</label><input type="text" name="contractTime" placeholder="Ex: 1 ano" value={formData.contractTime || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+                        <div><label className="text-sm font-medium text-slate-300">Chave Pix</label><input type="text" name="pixKey" value={formData.pixKey || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>
+                        <div><label className="text-sm font-medium text-slate-300">Tipo de Pagamento</label><select name="paymentType" value={formData.paymentType || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white">{db.paymentTypes.map(p => <option key={p} value={p}>{p}</option>)}</select></div>
+                        {showSalaryField && <div><label className="text-sm font-medium text-slate-300">Salário Fixo</label><input type="number" name="salary" value={formData.salary || ''} onChange={handleChange} className="w-full mt-1 p-3 border border-slate-600 rounded-lg bg-slate-900 text-white" /></div>}
+                        {showVariableFields && (
+                            <div className="p-4 border border-slate-700 rounded-lg space-y-4">
+                                <h4 className="font-semibold text-blue-400">Detalhes do Variável</h4>
+                                <div><label className="text-sm font-medium text-slate-300">Valor Variável</label><div className="flex mt-1"><input type="number" name="variableValue" placeholder="10" value={formData.variableValue || ''} onChange={handleChange} className="w-full p-3 border-y border-l border-slate-600 rounded-l-lg bg-slate-900" /><select name="variableType" value={formData.variableType || ''} onChange={handleChange} className="p-3 border-y border-r border-slate-600 rounded-r-lg bg-slate-700">{db.variablePaymentTypes.map(c => <option key={c} value={c}>{c}</option>)}</select></div></div>
+                                <div><label className="text-sm font-medium text-slate-300">Critério</label><SearchableSelect options={db.variableCriteriaOptions} value={formData.variableCriteria || ''} onChange={(val) => handleChange({ target: { name: 'variableCriteria', value: val } })} /></div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="mt-8"><button onClick={handleSave} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700">Salvar Colaborador</button></div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, message }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-lg shadow-2xl w-full max-w-sm">
+                <div className="p-6 text-center">
+                    <AlertTriangle className="mx-auto text-yellow-400 h-12 w-12 mb-4" />
+                    <h3 className="text-lg font-bold text-white mb-2">Confirmar Ação</h3>
+                    <p className="text-sm text-slate-300 mb-6">{message}</p>
+                    <div className="flex justify-center gap-4">
+                        <button onClick={onClose} className="px-6 py-2 rounded-md bg-slate-600 hover:bg-slate-500 text-white font-semibold">Cancelar</button>
+                        <button onClick={onConfirm} className="px-6 py-2 rounded-md bg-red-600 hover:bg-red-700 text-white font-semibold">Excluir</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const NotificationToast = ({ message, type, onDismiss }) => {
+    const icons = { success: <CheckCircle className="text-green-500" />, error: <XCircle className="text-red-500" />, info: <Info className="text-blue-500" /> };
+    const colors = { success: 'bg-green-500/20 border-green-500/30', error: 'bg-red-500/20 border-red-500/30', info: 'bg-blue-500/20 border-blue-500/30' };
+
+    useEffect(() => {
+        const timer = setTimeout(() => onDismiss(), 5000);
+        return () => clearTimeout(timer);
+    }, [onDismiss]);
+
+    return (
+        <div className={`flex items-center gap-4 p-4 mb-4 rounded-lg border ${colors[type]}`}>
+            {icons[type]}
+            <p className="text-slate-200 text-sm">{message}</p>
+            <button onClick={onDismiss} className="ml-auto text-slate-400 hover:text-white"><X size={18} /></button>
+        </div>
+    );
+};
+
+const SideNav = ({ activeView, setActiveView, isCollapsed, setIsCollapsed, onLogout }) => {
+    const mainNavItems = [{ id: 'dashboard', label: 'Dashboard', icon: Home }, { id: 'transactions', label: 'Fluxo de Caixa', icon: ArrowLeftRight }, { id: 'clients', label: 'Clientes', icon: Users }, { id: 'opportunities', label: 'Oportunidades', icon: Target }, { id: 'collaborators', label: 'Colaboradores', icon: Briefcase }];
+    const secondaryNavItems = [{ id: 'database', label: 'Banco de Dados', icon: Database }];
+
+    return (
+        <div className={`hidden md:flex flex-col justify-between bg-slate-900 border-r border-slate-800 p-4 transition-all duration-300 h-screen sticky top-0 ${isCollapsed ? 'w-20' : 'w-64'}`}>
+            <div>
+                <div className="flex items-center justify-between mb-8">
+                    {!isCollapsed && <div className="text-2xl font-bold text-blue-500">Rise Finance</div>}
+                    <button onClick={() => setIsCollapsed(!isCollapsed)} className="p-1 text-slate-400 hover:text-white">{isCollapsed ? <ChevronsRight size={20} /> : <ChevronsLeft size={20} />}</button>
+                </div>
+                <nav className="flex flex-col space-y-2">
+                    {mainNavItems.map(item => (
+                        <button key={item.id} onClick={() => setActiveView(item.id)} className={`flex items-center space-x-3 p-3 rounded-lg ${activeView === item.id ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-slate-800'} ${isCollapsed ? 'justify-center' : ''}`} title={item.label}>
+                            <item.icon size={22} />
+                            {!isCollapsed && <span>{item.label}</span>}
+                        </button>
+                    ))}
+                </nav>
+            </div>
+            <div>
+                {secondaryNavItems.map(item => (
+                    <button key={item.id} onClick={() => setActiveView(item.id)} className={`flex items-center w-full space-x-3 p-3 rounded-lg mt-2 ${activeView === item.id ? 'bg-blue-500/10 text-blue-400' : 'text-slate-300 hover:bg-slate-800'} ${isCollapsed ? 'justify-center' : ''}`} title={item.label}>
+                        <item.icon size={22} />
+                        {!isCollapsed && <span>{item.label}</span>}
+                    </button>
+                ))}
+                <button onClick={onLogout} className={`flex items-center w-full space-x-3 p-3 rounded-lg mt-2 text-slate-300 hover:bg-slate-800 ${isCollapsed ? 'justify-center' : ''}`} title="Sair">
+                    <LogOut size={22} />
+                    {!isCollapsed && <span>Sair</span>}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const BottomNav = ({ activeView, setActiveView }) => {
+    const navItems = [{ id: 'dashboard', label: 'Dashboard', icon: Home }, { id: 'transactions', label: 'Fluxo', icon: ArrowLeftRight }, { id: 'clients', label: 'Clientes', icon: Users }, { id: 'opportunities', label: 'Oport.', icon: Target }, { id: 'collaborators', label: 'Equipe', icon: Briefcase }];
+    return (<div className="fixed bottom-0 left-0 right-0 bg-slate-800/80 backdrop-blur-lg border-t border-slate-700 md:hidden z-30"><div className="flex justify-around">{navItems.map(item => (<button key={item.id} onClick={() => setActiveView(item.id)} className={`flex flex-col items-center justify-center w-full pt-3 pb-2 text-xs transition-colors ${activeView === item.id ? 'text-blue-400' : 'text-slate-400'}`}><item.icon size={20} /><span className="mt-1">{item.label}</span></button>))}</div></div>);
+};
+
+// --- APP PRINCIPAL ---
+export default function App() {
+    const [db, setDb] = useState(null);
+    const [transactions, setTransactions] = useState([]);
+    const [clients, setClients] = useState([]);
+    const [collaborators, setCollaborators] = useState([]);
+    const [userId, setUserId] = useState(null);
+    const [firebaseServices, setFirebaseServices] = useState({ app: null, auth: null, firestore: null });
+    const [activeView, setActiveView] = useState('dashboard');
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [notifications, setNotifications] = useState([]);
+    const [confirmation, setConfirmation] = useState({ isOpen: false, message: '', onConfirm: () => {} });
+    const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+    const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+    const [isCollaboratorModalOpen, setIsCollaboratorModalOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState(null);
+    const [isAuthReady, setIsAuthReady] = useState(false);
+
+    const addNotification = useCallback((message, type = 'success') => {
+        const id = crypto.randomUUID();
+        setNotifications(prev => [{ id, message, type }]);
+    }, []);
+
+    // Inicialização do Firebase e Autenticação
+    useEffect(() => {
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const firestore = getFirestore(app);
+        setFirebaseServices({ app, auth, firestore });
+
+        const handleAuth = async () => {
+            try {
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (token) {
+                    await signInWithCustomToken(auth, token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Authentication error:", error);
+                addNotification("Erro de autenticação.", "error");
+            }
+        };
+        
+        if(!auth.currentUser) {
+            handleAuth();
+        }
+
+        const unsub = onAuthStateChanged(auth, (user) => {
+            setUserId(user ? user.uid : null);
+            setIsAuthReady(true);
+        });
+        return () => unsub();
+    }, [addNotification]);
+
+    // Carregar dados do Firestore
+    useEffect(() => {
+        if (!userId || !firebaseServices.firestore) return;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        const setupListener = (collectionName, setter) => {
+            const q = query(collection(firebaseServices.firestore, 'artifacts', appId, 'users', userId, collectionName));
+            return onSnapshot(q, (snapshot) => {
+                const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                setter(items);
+            }, (error) => {
+                console.error(`Error fetching ${collectionName}:`, error);
+                addNotification(`Erro ao carregar ${collectionName}.`, 'error');
+            });
+        };
+
+        const unsubTransactions = setupListener('transactions', setTransactions);
+        const unsubClients = setupListener('clients', setClients);
+        const unsubCollaborators = setupListener('collaborators', setCollaborators);
+
+        const dbConfigRef = doc(firebaseServices.firestore, 'artifacts', appId, 'users', userId, 'config', 'main');
+        const unsubDb = onSnapshot(dbConfigRef, async (docSnap) => {
+            if (docSnap.exists()) {
+                setDb(docSnap.data());
+            } else {
+                try {
+                    await setDoc(dbConfigRef, initialDbData);
+                    setDb(initialDbData);
+                } catch(e) {
+                    console.error("Error setting initial DB data:", e);
+                    addNotification("Erro ao criar configuração inicial do utilizador.", 'error');
+                }
+            }
+        }, (error) => {
+            console.error("Error fetching user config:", error);
+            addNotification("Erro ao carregar a configuração do utilizador.", 'error');
+        });
+
+        return () => {
+            unsubTransactions();
+            unsubClients();
+            unsubCollaborators();
+            unsubDb();
+        };
+    }, [userId, firebaseServices.firestore, addNotification]);
+
+    const handleSave = async (collectionName, data) => {
+        if (!userId) {
+            addNotification('Utilizador não autenticado.', 'error');
+            return false;
+        }
+        try {
+            const { id, ...itemData } = data;
+            const colRef = collection(firebaseServices.firestore, 'artifacts', appId, 'users', userId, collectionName);
+            if (id) {
+                await updateDoc(doc(colRef, id), itemData);
+            } else {
+                await addDoc(colRef, itemData);
+            }
+            addNotification(`${collectionName.slice(0, -1)} salvo com sucesso!`);
+            return true;
+        } catch (error) {
+            addNotification(`Erro ao salvar ${collectionName.slice(0, -1)}.`, 'error');
+            console.error(`Save ${collectionName} error:`, error);
+            return false;
+        }
+    };
+
+    const handleSaveTransaction = async (data) => {
+        const success = await handleSave('transactions', data);
+        if (success) {
+            if (!data.id && data.type === 'entrada' && data.category === 'Serviço' && data.client) {
+                const client = clients.find(c => c.name === data.client);
+                if (client && client.responsibleCollaborator) {
+                    const collaborator = collaborators.find(c => c.name === client.responsibleCollaborator);
+                    if (collaborator && (collaborator.paymentType === 'Variável' || collaborator.paymentType === 'Fixo + Variável')) {
+                        let commission = 0;
+                        if (collaborator.variableType === '%') {
+                            commission = data.value * (collaborator.variableValue / 100);
+                        } else {
+                            commission = collaborator.variableValue;
+                        }
+                        
+                        if(commission > 0) {
+                            const commissionTransaction = {
+                                type: 'saida',
+                                category: 'Comissão',
+                                value: commission,
+                                currency: 'BRL',
+                                date: data.date,
+                                payer: data.payer,
+                                transferred: false,
+                                observation: `Comissão para ${collaborator.name} referente ao cliente ${client.name}`,
+                                collaboratorName: collaborator.name,
+                            };
+                            await handleSave('transactions', commissionTransaction);
+                        }
+                    }
+                }
+                const taxTransaction = { type: 'saida', category: 'Taxa', value: 3.09, currency: 'BRL', date: data.date, payer: data.payer, transferred: true, observation: 'Taxa do Asaas.', client: data.client };
+                await handleSave('transactions', taxTransaction);
+            }
+            setIsTransactionModalOpen(false);
+            setEditingItem(null);
+        }
+    };
+    
+    const handleSaveClient = async (newData, oldData) => {
+        let dataToSave = { ...newData };
+        if (oldData) { // is editing
+            const createHistoryLog = (oldD, newD) => {
+                const changes = [];
+                const keysToTrack = { name: 'Nome', status: 'Status', niche: 'Nicho', origin: 'Origem', mrr: 'MRR', responsibleCollaborator: 'Colaborador Responsável' };
+                Object.keys(keysToTrack).forEach(key => {
+                    if (oldD[key] !== newD[key]) {
+                        changes.push({ timestamp: new Date().toISOString(), action: `Campo Alterado: ${keysToTrack[key]}`, details: `De '${oldD[key] || 'Nenhum'}' para '${newD[key] || 'Nenhum'}'.` });
+                    }
+                });
+                return changes;
+            };
+            const historyChanges = createHistoryLog(oldData, newData);
+            dataToSave.history = [...(newData.history || []), ...historyChanges];
+        } else { // is creating
+            dataToSave.history = [{ timestamp: new Date().toISOString(), action: 'Cliente Criado', details: 'Cliente adicionado ao sistema.' }];
+        }
+        const success = await handleSave('clients', dataToSave);
+        if(success) {
+            setIsClientModalOpen(false);
+            setEditingItem(null);
+        }
+    };
+    
+    const handleSaveCollaborator = async (data) => {
+        const success = await handleSave('collaborators', data);
+        if(success) {
+            setIsCollaboratorModalOpen(false);
+            setEditingItem(null);
+        }
+    };
+
+    const handleDeleteRequest = (item, type) => {
+        setConfirmation({
+            isOpen: true,
+            message: `Tem certeza que deseja excluir "${item.name || item.category}"?`,
+            onConfirm: async () => {
+                try {
+                    await deleteDoc(doc(firebaseServices.firestore, 'artifacts', appId, 'users', userId, `${type}s`, item.id));
+                    addNotification("Item excluído.", "info");
+                } catch (error) {
+                    addNotification("Erro ao excluir.", "error");
+                } finally {
+                    setConfirmation({ isOpen: false });
+                }
+            }
+        });
+    };
+
+    const handleBulkAddTransactions = async (csvText) => {
+        if (!csvText) {
+            addNotification('Ficheiro CSV vazio ou inválido.', 'error');
+            return;
+        }
+        try {
+            const lines = csvText.trim().split('\n');
+            const delimiter = lines[0].includes(';') ? ';' : ',';
+            const headers = lines[0].replace(/[\r\n\uFEFF]/g, '').split(delimiter).map(h => h.trim().replace(/"/g, '')).filter(Boolean);
+            const transactionsToAdd = [];
+            
+            const requiredHeaders = ['Tipo', 'Categoria', 'Valor', 'Data'];
+            for (const requiredHeader of requiredHeaders) {
+                if (!headers.map(h => h.toLowerCase()).includes(requiredHeader.toLowerCase())) {
+                    addNotification(`Cabeçalho obrigatório em falta no CSV: ${requiredHeader}. Verifique se o delimitador é vírgula (,) ou ponto e vírgula (;).`, 'error');
+                    return;
+                }
+            }
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].replace(/[\r\n]/g, '').split(delimiter);
+                if (values.length < headers.length) continue;
+
+                const transaction = {};
+                headers.forEach((header, index) => {
+                    const keyMap = {
+                        'tipo': 'type', 'categoria': 'category', 'cliente': 'client', 
+                        'serviços': 'services', 'ferramenta': 'tool', 'valor': 'value', 
+                        'moeda': 'currency', 'data': 'date', 'pagador/recebedor': 'payer', 
+                        'transferido': 'transferred', 'observação': 'observation'
+                    };
+                    const key = keyMap[header.toLowerCase()] || header.toLowerCase();
+                    let value = values[index]?.trim().replace(/"/g, '');
+                    
+                    if (key === 'value') value = parseFloat(value.replace(',', '.')) || 0;
+                    else if (key === 'transferred') value = value?.toLowerCase() === 'true';
+                    else if (key === 'services') value = value ? value.split('|').map(s => s.trim()) : [];
+                    
+                    if(key) { // Evita criar campos com chave vazia
+                      transaction[key] = value;
+                    }
+                });
+                
+                if (transaction.type && transaction.category && !isNaN(transaction.value) && transaction.date) {
+                    transactionsToAdd.push(transaction);
+                }
+            }
+
+            if (transactionsToAdd.length === 0) {
+                addNotification('Nenhuma transação válida encontrada no ficheiro.', 'info');
+                return;
+            }
+
+            const batch = writeBatch(firebaseServices.firestore);
+            const colRef = collection(firebaseServices.firestore, 'artifacts', appId, 'users', userId, 'transactions');
+            transactionsToAdd.forEach(trans => {
+                const docRef = doc(colRef);
+                batch.set(docRef, trans);
+            });
+
+            await batch.commit();
+            addNotification(`${transactionsToAdd.length} transações importadas com sucesso!`, 'success');
+        } catch (error) {
+            console.error("Error processing CSV upload:", error);
+            addNotification('Ocorreu um erro ao processar o ficheiro CSV.', 'error');
+        }
+    };
+
+    const handleFabClick = () => {
+        setEditingItem(null);
+        if (activeView === 'clients') setIsClientModalOpen(true);
+        else if (activeView === 'transactions') setIsTransactionModalOpen(true);
+        else if (activeView === 'collaborators') setIsCollaboratorModalOpen(true);
+    };
+    
+    const handleLogout = async () => {
+        try {
+            await signOut(firebaseServices.auth);
+        } catch (error) {
+            console.error("Logout error:", error);
+            addNotification("Erro ao sair.", "error");
+        }
+    };
+
+    if (!isAuthReady) {
+        return <div className="flex items-center justify-center min-h-screen bg-slate-900 text-slate-400">A autenticar...</div>;
+    }
+
+    if (!userId) {
+        return <div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400">Falha na autenticação. Por favor, atualize a página.</div>;
+    }
+
+    const renderView = () => {
+        if (!db) return <div className="flex-1 flex items-center justify-center text-slate-400">A carregar dados...</div>;
+        switch (activeView) {
+            case 'transactions': return <TransactionsList transactions={transactions} onUpdate={(t) => handleSave('transactions', t)} db={db} onEditClick={(t) => { setEditingItem(t); setIsTransactionModalOpen(true); }} onDeleteClick={(t) => handleDeleteRequest(t, 'transaction')} onBulkAdd={handleBulkAddTransactions} />;
+            case 'clients': return <ClientsList clients={clients} transactions={transactions} db={db} onEditClick={(c) => { setEditingItem(c); setIsClientModalOpen(true); }} />;
+            case 'opportunities': return <OpportunitiesGrid clients={clients.filter(c => c.status === 'Ativo')} allServices={db.services} onUpdateClient={(c) => handleSave('clients', c)} />;
+            case 'collaborators': return <CollaboratorsList collaborators={collaborators} onEditClick={(c) => { setEditingItem(c); setIsCollaboratorModalOpen(true); }} onDeleteClick={(c) => handleDeleteRequest(c, 'collaborator')} />;
+            case 'database': return <DatabaseManager db={db} onDbUpdate={(newDb) => setDoc(doc(firebaseServices.firestore, 'artifacts', appId, 'users', userId, 'config', 'main'), newDb)} />;
+            default: return <Dashboard allTransactions={transactions} allClients={clients} />;
+        }
+    };
+
+    return (
+        <>
+            <style>{`::-webkit-scrollbar{width:8px;height:8px} ::-webkit-scrollbar-track{background:#1e293b} ::-webkit-scrollbar-thumb{background:#475569;border-radius:4px} ::-webkit-scrollbar-thumb:hover{background:#64748b}`}</style>
+            <div className="bg-slate-900 text-slate-200 min-h-screen font-sans flex">
+                <SideNav activeView={activeView} setActiveView={setActiveView} isCollapsed={isSidebarCollapsed} setIsCollapsed={setIsSidebarCollapsed} onLogout={handleLogout} />
+                <main className="flex-1 pb-20 md:pb-0 overflow-y-auto h-screen">{renderView()}</main>
+                <BottomNav activeView={activeView} setActiveView={setActiveView} />
+                <div className="fixed top-5 right-5 z-[100] w-full max-w-sm">{notifications.map(n => <NotificationToast key={n.id} {...n} onDismiss={() => setNotifications(p => p.filter(i => i.id !== n.id))} />)}</div>
+                <ConfirmationModal isOpen={confirmation.isOpen} onClose={() => setConfirmation({ isOpen: false })} onConfirm={confirmation.onConfirm} message={confirmation.message} />
+                {['transactions', 'clients', 'collaborators'].includes(activeView) && (<button onClick={handleFabClick} className="fixed bottom-24 right-6 md:bottom-10 md:right-10 bg-blue-600 text-white rounded-full p-4 shadow-lg hover:bg-blue-700 z-40 transition-transform hover:scale-110"><Plus size={28} /></button>)}
+                <TransactionModal isOpen={isTransactionModalOpen} onClose={() => { setIsTransactionModalOpen(false); setEditingItem(null); }} onSave={handleSaveTransaction} transaction={editingItem} db={db} collaborators={collaborators} />
+                <ClientModal isOpen={isClientModalOpen} onClose={() => { setIsClientModalOpen(false); setEditingItem(null); }} onSave={handleSaveClient} client={editingItem} onDelete={(c) => handleDeleteRequest(c, 'client')} db={db} collaborators={collaborators} />
+                <CollaboratorModal isOpen={isCollaboratorModalOpen} onClose={() => { setIsCollaboratorModalOpen(false); setEditingItem(null); }} onSave={handleSaveCollaborator} collaborator={editingItem} db={db} />
+            </div>
+        </>
+    );
+}
